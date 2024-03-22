@@ -107,14 +107,14 @@ def epoch_to_finnish_time(epoch):
 
 if __name__ == "__main__":
 
+
     html = get_data()
 
     # locations: List[Location] = parse_locations_data(html)
     locations = parse_locations_data(html)
 
     print()
-    print("All locations: ")
-    print(locations)
+
 
     epoch = 0
 
@@ -129,3 +129,6 @@ if __name__ == "__main__":
 
     time = epoch_to_finnish_time(location.epoch_timestamp)
     print("Back to Finnish time from epoch(using function): " + time)
+
+    print("All locations: ")
+    print(locations)
