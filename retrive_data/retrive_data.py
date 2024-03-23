@@ -1,8 +1,8 @@
 import requests
 import json
+
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-
 from typing import List
 
 
@@ -10,27 +10,35 @@ from typing import List
 class Location:
     location_id: int
     location_name: str
-    person_entries: int
+
     epoch_timestamp: int
-    day_of_the_week: str
+    location_visitors: int
 
-    def get_finnish_time(self):
-        """
-        Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
 
-        Returns:
-            str: A string representing the given epoch timestamp converted to Finnish time
-                in the format 'DD-MM-YYYY HH:MM:SS EET'.
-        """
+    def get_finnish_datetime(self) -> datetime:
         utc_datetime = datetime.fromtimestamp(self.epoch_timestamp)
 
         finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
 
         finnish_datetime = utc_datetime + finnish_time_offset
 
-        formatted_finnish_time = finnish_datetime.strftime("%d-%m-%Y %H:%M:%S EET")
+        return finnish_datetime
 
-        return formatted_finnish_time
+    def get_formatted_finnish_time(self) -> str:
+        """
+        Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
+        Format: 'DD-MM-YYYY HH:MM:SS EET'
+        """
+        return self.get_finnish_datetime().strftime("%d-%m-%Y %H:%M:%S EET")
+
+    def get_finnish_date(self) -> str:
+        return self.get_finnish_datetime().strftime("%d-%m-%Y")
+    
+    def get_finnish_time(self) -> str:
+        return self.get_finnish_datetime().strftime("%H:%M:%S")
+    
+    def get_finnish_day(self) -> str:
+        return self.get_finnish_datetime().strftime("%A")
 
 
 def get_data() -> requests.models.Response:
@@ -64,7 +72,6 @@ def parse_locations_data(response: requests.models.Response) -> List[Location]:
     time_object = datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z")
 
     epoch = int(time_object.timestamp())
-    day_of_the_week = time_object.strftime("%A")
 
     parsed_data = json.loads(response.text)
     entries_by_location = parsed_data["entriesByLocation"]
@@ -73,9 +80,8 @@ def parse_locations_data(response: requests.models.Response) -> List[Location]:
         location = Location(
             location_id=entry["locationId"],
             location_name=entry["locationName"],
-            person_entries=entry["personEntries"],
-            epoch_timestamp=epoch,
-            day_of_the_week=day_of_the_week,
+            location_visitors=entry["personEntries"],
+            epoch_timestamp=epoch
         )
         locations.append(location)
 
@@ -85,13 +91,7 @@ def parse_locations_data(response: requests.models.Response) -> List[Location]:
 def epoch_to_finnish_time(epoch):
     """
     Converts the given epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
-
-    Parameters:
-        epoch (int): The epoch timestamp to be converted to Finnish time.
-
-    Returns:
-        str: A string representing the given epoch timestamp converted to Finnish time
-             in the format 'DD-MM-YYYY HH:MM:SS EET'.
+    Format: 'DD-MM-YYYY HH:MM:SS EET'
     """
 
     utc_datetime = datetime.fromtimestamp(epoch)
@@ -105,30 +105,31 @@ def epoch_to_finnish_time(epoch):
     return formatted_finnish_time
 
 
-if __name__ == "__main__":
-
-
-    html = get_data()
-
-    # locations: List[Location] = parse_locations_data(html)
-    locations = parse_locations_data(html)
+def main():
+    hmtl = get_data()
+    locations = parse_locations_data(hmtl)
 
     print()
-
-
-    epoch = 0
-
-    for location in locations:
-        if location.location_id == 1:
-            epoch = location.epoch_timestamp
-            break
-    print("epoch: " + str(epoch))
-
-    time2 = location.get_finnish_time()
-    print("Finnish time from epoch (using class function): ", time2)
-
-    time = epoch_to_finnish_time(location.epoch_timestamp)
-    print("Back to Finnish time from epoch(using function): " + time)
-
-    print("All locations: ")
     print(locations)
+    print("Locaatiot:  ")
+    for location in locations:
+        print(location)
+        print(location.get_finnish_datetime())
+        print(location.get_finnish_date())
+        print(location.get_finnish_time())
+        print(location.get_finnish_day())
+    
+    print()
+
+    tuple1 = (1, "Toripoliisi", 1711190925, 55)
+    location1 = Location(*tuple1)
+
+    print(location1.get_formatted_finnish_time())
+    print(location1.get_finnish_day())
+    breakpoint1 = 2
+    print(epoch_to_finnish_time(1711160020))
+
+
+
+if __name__ == "__main__":
+    main()
