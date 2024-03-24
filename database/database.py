@@ -1,10 +1,10 @@
 import sqlite3
 import contextlib
 from typing import List
-from psycopg2 import sql
 
-from os import path
-import random
+import re
+
+
 
 
 DB_NAME = "visitorTrackingDB.db"
@@ -28,7 +28,7 @@ def initialize_database():
             cursor.execute(sql_create_visitor_activity_table)
         conn.commit()
 
-
+# KORJAA!
 def add_data(
     location_id: int, location_name: str, epoch_timestamp: int, location_visitors: int
 ) -> bool:
@@ -36,6 +36,7 @@ def add_data(
     add_location(location_id, location_name)
     add_visitor_activity(location_id, epoch_timestamp, location_visitors)
 
+    # KORJAA!
     return True
 
 
@@ -62,7 +63,7 @@ def add_visitor_activity(
         "INSERT INTO visitor_activity(location_id, epoch_timestamp, location_visitors) VALUES(?,?,?)"
     )
 
-    try: 
+    try:
         with sqlite3.connect(DB_FILE_PATH) as conn:
             with contextlib.closing(conn.cursor()) as cursor:
                 cursor.execute(
@@ -74,29 +75,6 @@ def add_visitor_activity(
         return False
 
     return True
-
-
-def add_to_table(
-    epoch: int, location_name: str, person_entries: int, day_of_the_week: str
-):
-    conn = sqlite3.connect(DB_FILE_PATH)
-    cursor = conn.cursor()
-
-    sql_insert_query = (
-        "INSERT INTO fun_oulu_ritaharju VALUES ("
-        + str(epoch)
-        + ",'"
-        + location_name
-        + "',"
-        + str(person_entries)
-        + ",'"
-        + day_of_the_week
-        + "')"
-    )
-
-    cursor.execute(sql_insert_query)
-    conn.commit()
-    conn.close()
 
 
 def table_has(location_id: int) -> bool:
@@ -112,51 +90,99 @@ def table_has(location_id: int) -> bool:
             return result is not None
 
 
-def copy_old_to_new_db(data: List[tuple]):
-    for item in data:
-        loc_id, epoch, lkm = item
-        if add_data(loc_id, "FUN Oulu Ritaharju", epoch, lkm):
-            print("Added successfully")
-        else:
-            print()
-            print("Failed to add")
-            print()
+def get_activity_between(location_id: int, start: int, end: int) -> List[tuple]:
+    """
+    Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
+
+    Parameters:
+        location_id (int): The ID of the location..
+        start (int): The start time (inclusive) of the time range in epoch format.
+        end (int): The end time (exclusive) of the time range in epoch format.
+
+    Returns:
+        List[Tuple]: A list of tuples representing the retrieved activity records.
+                     Each tuple contains two elements: epoch timestamp and number of location visitors.
+
+    If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
+    an empty list is returned.
+    """
+    activity_list: List[tuple] = []
+
+    if start < 0 or end < 0:
+        return activity_list
+
+    if (
+        not isinstance(location_id, int)
+        or not isinstance(start, int)
+        or not isinstance(end, int)
+    ):
+        return activity_list
 
 
+    
+    pstmt_get_between: str = """SELECT epoch_timestamp, location_visitors 
+        FROM visitor_activity
+        WHERE (location_id = ?) AND (epoch_timestamp >= ? AND epoch_timestamp < ?)
+        ORDER BY epoch_timestamp
+        """
 
-    # sql_query_insert: str = (
-    #     "INSERT INTO visitor_activity(location_id, epoch_timestamp, location_visitors) VALUES (?,?,?)"
-    # )
-
-    # with sqlite3.connect(DB_FILE_PATH) as conn:
-    #     with contextlib.closing(conn.cursor()) as cursor:
-    #         for item in data:
-    #             cursor.execute(sql_query_insert, item)
-    #             conn.commit()
-        
-
-
-def get_data_from_old() -> List[tuple]:
-    data: List[tuple] = []
-    all_fe = []
-    sql_query_get_data: str = (
-        "SELECT epoch_timestamp, person_entries FROM fun_oulu_ritaharju"
-    )
-
-    with sqlite3.connect(
-        "C:/Users/kaspe/git-repo-clone/omat-projektit/headcount-graph-project/myLocationDB.db"
-    ) as conn:
+    with sqlite3.connect(DB_FILE_PATH) as conn:
         with contextlib.closing(conn.cursor()) as cursor:
-            cursor.execute(sql_query_get_data)
-            all_fe = cursor.fetchall()
+            cursor.execute(pstmt_get_between, (location_id, start, end))
+            all_list = cursor.fetchall()
 
-    for tuple_all in all_fe:
-        smaller_tuple = tuple_all
-        epoch_timestamp, person_entries = smaller_tuple
-        tuple_with_loc_id = (1, epoch_timestamp, person_entries)
-        data.append(tuple_with_loc_id)
+    return all_list
 
-    return data
+
+def get_all(table_name: str) -> List[tuple]:
+    """
+    Retrieve all records from the specified table in the database.
+
+    Returns:
+        List[Tuple]: A list of tuples representing the retrieved records.
+                     Each tuple corresponds to a single row in the table.
+
+    If the provided table name is not valid according to typical database naming conventions
+    or if the table does not exist in the database, an empty list is returned.
+
+    """
+    all_list: List[tuple] = []
+
+    if not valid_table_name(table_name) or not table_exists(table_name):
+        return all_list
+
+    stmt_get_all = f"SELECT * FROM {table_name}"
+
+    with sqlite3.connect(DB_FILE_PATH) as conn:
+        with contextlib.closing(conn.cursor()) as cursor:
+            cursor.execute(stmt_get_all)
+            all_list = cursor.fetchall()
+
+    return all_list
+
+
+def table_exists(table_name: str) -> bool:
+    stmt = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+
+    with sqlite3.connect(DB_FILE_PATH) as conn:
+        with contextlib.closing(conn.cursor()) as cursor:
+            cursor.execute(stmt)
+            result = cursor.fetchone()
+
+            return result
+
+
+def valid_table_name(table_name: str) -> bool:
+    """
+    Checks that table_name only uses ascii-letters, underscores,
+    numbers or "äÄöÖåÅ"-letters.
+
+    A-Za-z0-9_äÄöÖåÅ
+    """
+    if re.match("^[A-Za-z0-9_äÄöÖåÅ]+$", table_name):
+        return True
+    else:
+        return False
 
 
 def main():
@@ -165,19 +191,17 @@ def main():
     initialize_database()
     print("Database intialized...")
     print()
-    # add_data(1, "Koulu", random.randint(1, 10000000), 33)
-    # add_data(2, "blah'); drop table locations; --", random.randint(1, 10000000), 22)
-    # print(table_has(1))
-    # print(table_has(2))
-    old_data = get_data_from_old()
-    print("Got data from old DB")
-    copy_old_to_new_db(old_data)
-    print("Copied data")
-
-    # print(count_rows("fun_oulu_ritaharju"))
-
-    # data = get_data_from_old()
-    # copy_old_to_new_db(data)
+    jep = get_all("locations")
+    print(get_all("locations"))
+    print(get_all("visitor_activity;;;;;;;;"))
+    # juu = get_activity_between(1, 1711276, 1711276903)
+    # print(juu)
+    # jep = get_all("visitor_activity")
+    # print(jep)
+    # print(get_all("nope"))
+    # print(table_exists("locations"))
+    # print(table_exists("nope"))
+    # print(table_exists("visitor_activity"))
 
     i = 2
 

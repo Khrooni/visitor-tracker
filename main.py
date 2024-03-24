@@ -1,7 +1,12 @@
 import time
+import re
+
 
 import retrive_data
 import database
+
+
+
 
 
 def main():
@@ -26,6 +31,24 @@ def main():
     location_visitors = 0
 
     locationTest = retrive_data.Location(1, "nimi", 1000, 22)
+
+
+    time.sleep(0)
+
+    loca = "321321"
+    start = 131
+    end = -1
+
+    
+    if start < 0 or end < 0:
+        print("liian pieni")
+
+    if not isinstance(loca, int) or not isinstance(start, int) or not isinstance(end, int):
+        print("ei int")
+    else:
+        print("int")
+
+    # print(isinstance(12314, int))
 
     # print(retrive_data.epoch_to_finnish_time(1711200876))
 

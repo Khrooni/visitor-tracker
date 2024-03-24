@@ -1,1 +1,1 @@
-from .retrive_data import Location, get_data, parse_locations_data, epoch_to_finnish_time
+from .retrive_data import Location, _get_html, _parse_locations_data, epoch_to_finnish_time
