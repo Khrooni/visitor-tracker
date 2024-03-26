@@ -1,0 +1,2 @@
+except IOError:
+    #     return None

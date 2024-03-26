@@ -24,21 +24,38 @@ class Location:
 
         return finnish_datetime
 
-    def get_formatted_finnish_time(self) -> str:
+    def get_formatted_finnish_time(self) -> str | None:
         """
         Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
         Format: 'DD-MM-YYYY HH:MM:SS EET'
+
+        Returns None if epoch timestamp was a value that couldn't be converted.
         """
-        return self._get_finnish_datetime().strftime("%d-%m-%Y %H:%M:%S EET")
+        try:
+            return self._get_finnish_datetime().strftime("%d-%m-%Y %H:%M:%S EET")
+        except IOError:
+            return None
 
-    def get_finnish_date(self) -> str:
-        return self._get_finnish_datetime().strftime("%d-%m-%Y")
+    def get_finnish_date(self) -> str | None:
+        """Returns None if epoch timestamp was a value that couldn't be converted."""
+        try:
+            return self._get_finnish_datetime().strftime("%d-%m-%Y")
+        except IOError:
+            return None
 
-    def get_finnish_time(self) -> str:
-        return self._get_finnish_datetime().strftime("%H:%M:%S")
+    def get_finnish_time(self) -> str | None:
+        """Returns None if epoch timestamp was a value that couldn't be converted."""
+        try:
+            return self._get_finnish_datetime().strftime("%H:%M:%S")
+        except IOError:
+            return None
 
-    def get_finnish_day(self) -> str:
-        return self._get_finnish_datetime().strftime("%A")
+    def get_finnish_day(self) -> str | None:
+        """Returns None if epoch timestamp was a value that couldn't be converted."""
+        try:
+            return self._get_finnish_datetime().strftime("%A")
+        except IOError:
+            return None
 
 
 def _get_html() -> requests.models.Response:
@@ -69,10 +86,11 @@ def _parse_locations_data(response: requests.models.Response) -> List[Location]:
     locations = []
 
     date = response.headers.get("date")
+    print(date)  # Korjaa
     time_object = datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z")
 
     epoch = int(time_object.timestamp())
-
+    print(epoch)
     parsed_data = json.loads(response.text)
     entries_by_location = parsed_data["entriesByLocation"]
 
@@ -92,15 +110,21 @@ def epoch_to_finnish_time(epoch):
     """
     Converts the given epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
     Format: 'DD-MM-YYYY HH:MM:SS EET'
+
+    Returns None if epoch was a value that couldn't be converted.
     """
+    if epoch < 0:
+        return None
+    try:
+        utc_datetime = datetime.fromtimestamp(epoch)
 
-    utc_datetime = datetime.fromtimestamp(epoch)
+        finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
 
-    finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
+        finnish_datetime = utc_datetime + finnish_time_offset
 
-    finnish_datetime = utc_datetime + finnish_time_offset
-
-    formatted_finnish_time = finnish_datetime.strftime("%d-%m-%Y %H:%M:%S EET")
+        formatted_finnish_time = finnish_datetime.strftime("%d-%m-%Y %H:%M:%S EET")
+    except IOError:
+        return None
 
     return formatted_finnish_time
 
@@ -141,14 +165,13 @@ def get_data_periodically(duration: int, interval: int) -> List[Location]:
 
 
 def main():
-    data = get_data_periodically(60, 10)
+    # data = get_data_periodically(60, 10)
+    print(epoch_to_finnish_time(100000))
     # for i, location in enumerate(data):
     #     print()
     #     print(f"Time (iteration {i+1}): {location.get_formatted_finnish_time()}")
     #     print(f"Visitors (iteration {i+1}): {location.location_visitors}")
     #     print()
-
-
 
 
 if __name__ == "__main__":

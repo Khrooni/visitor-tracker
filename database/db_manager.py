@@ -39,18 +39,23 @@ class SQLiteDBManager:
     def __del__(self):
         self._close()
 
-    def add_data(self, 
-        location_id: int, location_name: str, epoch_timestamp: int, location_visitors: int
+    def add_data(
+        self,
+        location_id: int,
+        location_name: str,
+        epoch_timestamp: int,
+        location_visitors: int,
     ) -> bool:
         try:
             self.add_location(location_id, location_name)
         except sqlite3.DatabaseError:
             return False
 
-        success = self.add_visitor_activity(location_id, epoch_timestamp, location_visitors)
+        success = self.add_visitor_activity(
+            location_id, epoch_timestamp, location_visitors
+        )
 
         return success
-
 
     def add_location(self, location_id: int, location_name: str) -> bool:
         if self._table_has(location_id):
@@ -59,17 +64,15 @@ class SQLiteDBManager:
         pstmt_add_visitor_data: str = (
             "INSERT INTO locations(location_id, location_name) VALUES(?,?)"
         )
-        
-    
+
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_add_visitor_data, (location_id, location_name))
             self.conn.commit()
 
         return True
 
-
-    def add_visitor_activity(self,
-        location_id: int, epoch_timestamp: int, location_visitors: int
+    def add_visitor_activity(
+        self, location_id: int, epoch_timestamp: int, location_visitors: int
     ) -> bool:
         pstmt_add_visitor_data: str = (
             "INSERT INTO visitor_activity(location_id, epoch_timestamp, location_visitors) VALUES(?,?,?)"
@@ -87,21 +90,20 @@ class SQLiteDBManager:
 
         return True
 
-
     def _table_has(self, location_id: int) -> bool:
         """
         Checks if a location with the given location_id exists in the 'locations' table.
         """
         pstmt_check_table: str = "SELECT * FROM locations WHERE location_id = ?"
 
-
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_check_table, (location_id,))
             result = cursor.fetchone()
             return result is not None
 
-
-    def get_activity_between(self, location_id: int, start: int, end: int) -> List[tuple]:
+    def get_activity_between(
+        self, location_id: int, start: int, end: int
+    ) -> List[tuple]:
         """
         Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
 
@@ -128,13 +130,11 @@ class SQLiteDBManager:
             ORDER BY epoch_timestamp
             """
 
-    
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_get_between, (location_id, start, end))
             activity_list = cursor.fetchall()
 
         return activity_list
-
 
     def get_all(self, table_name: str) -> List[tuple]:
         """
@@ -155,13 +155,11 @@ class SQLiteDBManager:
 
         stmt_get_all = f"SELECT * FROM {table_name}"
 
-
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(stmt_get_all)
             all_list = cursor.fetchall()
 
         return all_list
-
 
     def _table_exists(self, table_name: str) -> bool:
         """
@@ -172,15 +170,15 @@ class SQLiteDBManager:
         if not self._valid_table_name(table_name):
             return False
 
-        stmt = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+        stmt = (
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+        )
 
-    
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(stmt)
             result = cursor.fetchone()
 
             return result
-
 
     def _valid_table_name(self, table_name: str) -> bool:
         """
@@ -195,8 +193,6 @@ class SQLiteDBManager:
             return False
 
 
-
-
 def main():
     print()
     print("Start")
@@ -204,7 +200,6 @@ def main():
     # print("Database intialized...")
     # print()
     # db_handle.__del__()
-
 
     i = 2
 
