@@ -2,5 +2,7 @@ myLocationDB.db
 data_collector_main.py
 retrive_data/tempCodeRunnerFile.py
 kivyenv/
+zsample/
 temp_data_collection.py
 database/tempCodeRunnerFile.py
+__pycache__/
