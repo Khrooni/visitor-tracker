@@ -130,11 +130,6 @@ def get_data_periodically(duration: int, interval: int) -> List[Location]:
         locations = _parse_locations_data(hmtl)
         for location in locations:
             location_data.append(location)
-            # print()
-            # print(f'Location name: {location.location_name}')
-            # print(f"Time : {location.get_formatted_finnish_time()}")
-            # print(f"Visitors : {location.location_visitors}")
-            # print()
 
         # Time it took took to execute data fetching
         function_time = time.perf_counter() - function_start
@@ -153,45 +148,7 @@ def main():
     #     print(f"Visitors (iteration {i+1}): {location.location_visitors}")
     #     print()
 
-    # print(time.perf_counter())
 
-    # print(time.perf_counter())
-
-    # aika = 184336.9541947 - 184324.063079
-    # print(aika)
-    # jep = float(60) - aika
-    # print(jep)
-
-    # alku = time.perf_counter()
-    # time.sleep(jep)
-    # loppu = time.perf_counter()
-
-    # kulunut = loppu - alku
-    # print(f"kulunut: {kulunut}")
-
-    breakpoint1 = 2
-    # hmtl = _get_html()
-    # locations = _parse_locations_data(hmtl)
-
-    # print()
-    # print(locations)
-    # print("Locaatiot:  ")
-    # for location in locations:
-    #     print(location)
-    #     print(location._get_finnish_datetime())
-    #     print(location.get_finnish_date())
-    #     print(location.get_finnish_time())
-    #     print(location.get_finnish_day())
-
-    # print()
-
-    # tuple1 = (1, "Toripoliisi", 1711190925, 55)
-    # location1 = Location(*tuple1)
-
-    # print(location1.get_formatted_finnish_time())
-    # print(location1.get_finnish_day())
-
-    # print(epoch_to_finnish_time(1711160020))
 
 
 if __name__ == "__main__":
