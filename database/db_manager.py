@@ -2,6 +2,7 @@ import sqlite3
 import contextlib
 from typing import List
 import re
+import math
 
 from .helpers import are_ints
 
@@ -133,6 +134,78 @@ class SQLiteDBManager:
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_get_between, (location_id, start, end))
             activity_list = cursor.fetchall()
+
+        return activity_list
+    
+    def get_avg_activity_between(
+        self, location_id: int, start: int, end: int
+    ) -> tuple:
+        """
+        Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
+
+        Parameters:
+            location_id (int): The ID of the location..
+            start (int): The start time (inclusive) of the time range in epoch format.
+            end (int): The end time (exclusive) of the time range in epoch format.
+
+        Returns:
+            List[Tuple]: A list of tuples representing the retrieved activity records.
+                        Each tuple contains two elements: epoch timestamp and number of location visitors.
+
+        If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
+        an empty list is returned.
+        """
+        activity_list: List[tuple] = []
+
+        if not are_ints(location_id, start, end) or (start < 0 or end < 0):
+            return None
+
+        pstmt_get_between: str = """SELECT AVG(location_visitors) 
+            FROM visitor_activity
+            WHERE (location_id = ?) AND (epoch_timestamp >= ? AND epoch_timestamp < ?)
+            ORDER BY epoch_timestamp
+            """
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt_get_between, (location_id, start, end))
+            average= cursor.fetchone()
+        
+            
+
+        return (start, average[0])
+    
+    def get_avg_activity_between_peridiocally(
+        self, location_id: int, start: int, end: int, interval: int
+    ) -> List[tuple]:
+        """
+        Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
+
+        Parameters:
+            location_id (int): The ID of the location..
+            start (int): The start time (inclusive) of the time range in epoch format.
+            end (int): The end time (exclusive) of the time range in epoch format.
+
+        Returns:
+            List[Tuple]: A list of tuples representing the retrieved activity records.
+                        Each tuple contains two elements: epoch timestamp and number of location visitors.
+
+        If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
+        an empty list is returned.
+        """
+        activity_list: List[tuple] = []
+
+        if not are_ints(location_id, start, end, interval) or (start < 0 or end < 0):
+            return activity_list
+
+        duration = end - start
+        loops = math.floor(duration / interval)
+
+        for i in range(loops):
+            activity = self.get_avg_activity_between(1, (start + i * interval), (start + (i + 1) * interval))
+            activity_list.append(activity)
+        
+
+        
 
         return activity_list
 

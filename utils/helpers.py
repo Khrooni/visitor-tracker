@@ -1,18 +1,74 @@
-from datetime import datetime, timedelta, timezone
-import pytz
+from datetime import datetime, timedelta
 
 
-def epoch_to_finnish_time(epoch):
+def _get_finnish_datetime(epoch_timestamp) -> datetime:
+    utc_datetime = datetime.fromtimestamp(epoch_timestamp)
+
+    finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
+
+    finnish_datetime = utc_datetime + finnish_time_offset
+
+    return finnish_datetime
+
+def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     """
-    Converts the given epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
+    Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
     Format: 'DD-MM-YYYY HH:MM:SS EET'
+
+    Returns None if epoch timestamp was a value that couldn't be converted.
+    """
+    try:
+        return _get_finnish_datetime(epoch_timestamp).strftime("%d-%m-%Y %H:%M:%S EET")
+    except IOError:
+        return None
+
+def get_finnish_date(epoch_timestamp) -> str | None:
+    """Returns None if epoch timestamp was a value that couldn't be converted."""
+    try:
+        return _get_finnish_datetime(epoch_timestamp).strftime("%d-%m-%Y")
+    except IOError:
+        return None
+
+def get_finnish_time(epoch_timestamp) -> str | None:
+    """Returns None if epoch timestamp was a value that couldn't be converted."""
+    try:
+        return _get_finnish_datetime(epoch_timestamp).strftime("%H:%M:%S")
+    except IOError:
+        return None
+    
+def get_finnish_hour(epoch_timestamp) -> str | None:
+    """Returns None if epoch timestamp was a value that couldn't be converted."""
+    try:
+        return _get_finnish_datetime(epoch_timestamp).strftime("%H")
+    except IOError:
+        return None
+
+
+def get_finnish_day(epoch_timestamp) -> str | None:
+    """Returns None if epoch timestamp was a value that couldn't be converted."""
+    try:
+        return _get_finnish_datetime(epoch_timestamp).strftime("%A")
+    except IOError:
+        return None
+
+def epoch_to_time(epoch, utc_offset_hours=2):
+    """
+    Convert the given epoch timestamp to Finnish time zone (EET: UTC+2) and return it in a formatted string.
+
+    Parameters:
+        epoch (int): Epoch timestamp (UTC epoch) to convert.
+        utc_offset_hours (int, optional): Offset from UTC in hours for the target time zone.
+        Defaults to 2, representing EET (Eastern European Time, UTC+2).
+
+    Returns:
+        str | None: Formatted string representing the time in Finnish time zone ('DD-MM-YYYY HH:MM:SS EET') if successful, otherwise None.
     """
     if epoch < 0:
         return None
     try:
         utc_datetime = datetime.fromtimestamp(epoch)
 
-        finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
+        finnish_time_offset = timedelta(hours=utc_offset_hours)  # Finland (EET: UTC+2)
 
         finnish_datetime = utc_datetime + finnish_time_offset
 
@@ -23,12 +79,23 @@ def epoch_to_finnish_time(epoch):
     return formatted_finnish_time
 
 
-def time_to_epoch(time: str) -> int | None:
+def time_to_epoch(time: str, utc_offset_hours=2) -> int | None:
+    """
+    Convert the given time string in 'DD-MM-YYYY HH:MM:SS' format to epoch timestamp in UTC.
+
+    Parameters:
+        time (str): Time string in 'DD-MM-YYYY HH:MM:SS' format to convert.
+        utc_offset_hours (int, optional): Offset from UTC in hours for the source time zone.
+        Defaults to 2, representing EET (Eastern European Time, UTC+2).
+
+    Returns:
+        int | None: Epoch timestamp if conversion is successful, otherwise None.
+    """
     try:
         time_obj = datetime.strptime(time, "%d-%m-%Y %H:%M:%S")
 
         # Finland (EET: UTC+2)
-        finnish_time_offset = timedelta(hours=2)
+        finnish_time_offset = timedelta(hours=utc_offset_hours)
 
         # Convert Finnish time to UTC
         utc_time_obj = time_obj - finnish_time_offset
@@ -65,7 +132,7 @@ def main():
         "invalid_format",  # Invalid time string format
     ]
 
-    print(epoch_to_finnish_time((253402300796)))
+    print(epoch_to_time((253402300796)))
     fin_time = None
     for case in edge_cases2:
         print(f"Testing with time string: {case}")
@@ -73,14 +140,14 @@ def main():
         if epoch_time is not None:
             print(f"Epoch time: {epoch_time}")
             if epoch_time is not None:
-                fin_time = epoch_to_finnish_time(epoch_time)
+                fin_time = epoch_to_time(epoch_time)
             else:
                 fin_time = None
 
             print(f"epoch ({epoch_time} is: {fin_time})")
         print()
 
-    print(epoch_to_finnish_time(1711485419))
+    print(epoch_to_time(1711485419))
 
 
 if __name__ == "__main__":
