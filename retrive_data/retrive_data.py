@@ -163,6 +163,14 @@ def get_data_periodically(duration: int, interval: int) -> List[Location]:
 
     return location_data
 
+def get_data():
+    location_data: List[Location] = []
+    hmtl = _get_html()
+    locations = _parse_locations_data(hmtl)
+    for location in locations:
+        location_data.append(location)
+    return location_data
+
 
 def main():
     # data = get_data_periodically(60, 10)
