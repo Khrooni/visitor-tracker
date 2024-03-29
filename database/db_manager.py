@@ -4,7 +4,11 @@ from typing import List
 import re
 import math
 
-from .helpers import are_ints
+from .helpers import are_ints, get_unique_epochs
+
+# from .helpers import are_ints, get_unique_epochs
+
+import time
 
 
 DB_NAME = "visitorTrackingDB.db"
@@ -136,10 +140,8 @@ class SQLiteDBManager:
             activity_list = cursor.fetchall()
 
         return activity_list
-    
-    def get_avg_activity_between(
-        self, location_id: int, start: int, end: int
-    ) -> tuple:
+
+    def get_avg_activity_between(self, location_id: int, start: int, end: int) -> tuple:
         """
         Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
 
@@ -168,12 +170,10 @@ class SQLiteDBManager:
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_get_between, (location_id, start, end))
-            average= cursor.fetchone()
-        
-            
+            average = cursor.fetchone()
 
         return (start, average[0])
-    
+
     def get_avg_activity_between_peridiocally(
         self, location_id: int, start: int, end: int, interval: int
     ) -> List[tuple]:
@@ -184,10 +184,12 @@ class SQLiteDBManager:
             location_id (int): The ID of the location..
             start (int): The start time (inclusive) of the time range in epoch format.
             end (int): The end time (exclusive) of the time range in epoch format.
+            interval (int): The duration of each interval in seconds. Average visitors will be calculated
+                                within each interval.
 
         Returns:
             List[Tuple]: A list of tuples representing the retrieved activity records.
-                        Each tuple contains two elements: epoch timestamp and number of location visitors.
+                        Each tuple contains two elements: epoch timestamp (interval start time) and average visitors during inteval.
 
         If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
         an empty list is returned.
@@ -201,13 +203,37 @@ class SQLiteDBManager:
         loops = math.floor(duration / interval)
 
         for i in range(loops):
-            activity = self.get_avg_activity_between(1, (start + i * interval), (start + (i + 1) * interval))
+            activity = self.get_avg_activity_between(
+                1, (start + i * interval), (start + (i + 1) * interval)
+            )
             activity_list.append(activity)
-        
-
-        
 
         return activity_list
+
+    def get_unique_dates(self, location_id: int) -> List[int]:
+        unique_epochs = []
+
+        if not are_ints(location_id):
+            return unique_epochs
+
+        all_epochs = []
+
+        pstmt_get_between: str = """SELECT epoch_timestamp
+            FROM visitor_activity
+            WHERE (location_id = ?)
+            ORDER BY epoch_timestamp
+            """
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt_get_between, (location_id,))
+            all_epochs_tuple = cursor.fetchall()
+            for row in all_epochs_tuple:
+                if len(row) > 0:
+                    all_epochs.append(row[0])
+
+        unique_epochs = get_unique_epochs(all_epochs)
+
+        return unique_epochs
 
     def get_all(self, table_name: str) -> List[tuple]:
         """
@@ -267,12 +293,6 @@ class SQLiteDBManager:
 
 
 def main():
-    print()
-    print("Start")
-    # db_handle = SQLiteDBManager()
-    # print("Database intialized...")
-    # print()
-    # db_handle.__del__()
 
     i = 2
 

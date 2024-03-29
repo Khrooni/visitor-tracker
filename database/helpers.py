@@ -1,5 +1,7 @@
 import re
 import string
+from typing import List
+from datetime import datetime
 
 
 def are_ints(*args):
@@ -8,6 +10,18 @@ def are_ints(*args):
         if not isinstance(arg, int):
             return False
     return True
+
+def get_unique_epochs(all_epochs: List[int]) -> List[int]:
+    dates = [datetime.fromtimestamp(epoch).strftime("%d-%m-%Y") for epoch in all_epochs]
+
+    unique_dates = []
+    seen_dates = set()
+    for date in dates:
+        if date not in seen_dates:
+            unique_dates.append(date)
+            seen_dates.add(date)
+
+    return unique_dates
 
 
 def valid_table_name(table_name: str) -> bool:

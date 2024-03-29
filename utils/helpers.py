@@ -1,4 +1,31 @@
 from datetime import datetime, timedelta
+from typing import List
+
+
+def convert_for_day_graph(data: List[tuple[int, int]]) -> tuple[List[int], List[int]]:
+    """
+    Convert a list of tuples representing data points for a day graph.
+
+    Parameters:
+        data (List[Tuple[int, int]]): A list of tuples where each tuple contains two integers representing
+                                       x (epoch_timestamp) and y (visitor activity) values. 
+
+    Returns:
+        Tuple[List[int], List[int]]: A tuple containing two lists:
+                                      - The first list contains converted x values (hour).
+                                      - The second list contains y values (visitor activity).
+    """
+    x_values, y_values = zip(*data)
+
+    data_split = [(x_value, y_value) for x_value, y_value in data]
+
+    # Extract x values and convert them to dates
+    x_values = [get_finnish_hour(x) for x, _ in data_split]
+
+    # Extract y values
+    y_values = [int(round(y)) for _, y in data_split]
+
+    return x_values, y_values
 
 
 def _get_finnish_datetime(epoch_timestamp) -> datetime:
@@ -9,6 +36,7 @@ def _get_finnish_datetime(epoch_timestamp) -> datetime:
     finnish_datetime = utc_datetime + finnish_time_offset
 
     return finnish_datetime
+
 
 def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     """
@@ -22,6 +50,7 @@ def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     except IOError:
         return None
 
+
 def get_finnish_date(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
@@ -29,13 +58,15 @@ def get_finnish_date(epoch_timestamp) -> str | None:
     except IOError:
         return None
 
+
 def get_finnish_time(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
         return _get_finnish_datetime(epoch_timestamp).strftime("%H:%M:%S")
     except IOError:
         return None
-    
+
+
 def get_finnish_hour(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
@@ -50,6 +81,7 @@ def get_finnish_day(epoch_timestamp) -> str | None:
         return _get_finnish_datetime(epoch_timestamp).strftime("%A")
     except IOError:
         return None
+
 
 def epoch_to_time(epoch, utc_offset_hours=2):
     """
