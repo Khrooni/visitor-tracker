@@ -1,10 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
-import customtkinter as ctk
+from tkcalendar import Calendar
+from tkcalendar import DateEntry
 
+import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
-import pandas as pd
+import datetime
+
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,11 +23,9 @@ from utils import (
     get_finnish_date,
     get_finnish_day,
     get_formatted_finnish_time,
+    get_finnish_hour,
 )
-from utils import *
 
-
-from tkcalendar import DateEntry
 
 import math
 
@@ -43,17 +44,14 @@ class App(ctk.CTk):
         positions = self._calculte_positions(size)
         self.geometry(f"{int(size[0])}x{size[1]}+{positions[0]}+{positions[1]}")
         self.minsize(min_size[0], min_size[1])
-        # self.attributes('-fullscreen', True)
-        # self.iconbitmap('python.ico') # Choose app icon.
-
-        # widgets
 
         ctk.set_appearance_mode("Dark")
 
         self.menu = Menu(self)
 
         self.sidebar = SideBarGraph(self)
-        self.main_frame = MainFrameGraph(self)
+
+        # self.main_frame = MainFrameGraph(self)
 
         # run
         self.mainloop()
@@ -72,7 +70,7 @@ class App(ctk.CTk):
 class SideBarGraph(ctk.CTkFrame):
     def __init__(self, parent: App, width=175):
         super().__init__(parent, width=width, corner_radius=0)
-        self.pack_propagate(False)
+        # self.pack_propagate(False)
         self.pack(fill="y", side="left")
 
         # Sidebar name text
@@ -93,6 +91,52 @@ class SideBarGraph(ctk.CTkFrame):
         )
         self.sidebar_button_2.pack(side=tk.TOP, padx=10, pady=10)
 
+        # self.frame = ctk.CTkFrame(self)
+        # self.frame.pack(fill="both", padx=10, pady=10, expand=True)
+
+        cal = CustomDateEntry(
+            self,
+            date_pattern="dd-mm-yyyy",
+            font="Helvetica 20 bold",
+            justify="center",
+            width=12,
+            bg="#1E6FBA",
+            fg="yellow",
+            disabledbackground="#1E6FBA",
+            highlightbackground="black",
+            highlightcolor="red",
+            highlightthickness=1,
+            bd=0,
+            selectmode="day",
+            locale="en_US",
+            disabledforeground="red",
+            cursor="hand2",
+            background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
+            selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
+        )
+
+        # cal = Calendar(
+        #     self.frame,
+        #     selectmode="day",
+        #     locale="en_US",
+        #     disabledforeground="red",
+        #     cursor="hand2",
+        #     background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
+        #     selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
+        # )
+        cal.pack()
+        
+
+        # highlighted_dates = ['2024-03-15', '2024-03-20', '2024-03-25']
+
+        # # Extract year, month, and day from the highlighted dates
+        # highlighted_dates = [tuple(map(int, date.split('-'))) for date in highlighted_dates]
+
+        # # Highlight the dates in the DateEntry widget
+        # cal.calevent_remove(all=True)  # Clear existing highlights
+        # for date in highlighted_dates:
+        #     cal.calevent_create(date, 'Highlighted Date', 'Highlight')
+
         # Graph Type dropdown menu
         self.graph_type_option_menu = ctk.CTkOptionMenu(
             self,
@@ -102,7 +146,7 @@ class SideBarGraph(ctk.CTkFrame):
         self.graph_type_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
         # Graph Type label
         self.graph_type_label = ctk.CTkLabel(self, text="Graph Type:", anchor="w")
-        self.graph_type_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 0))
+        self.graph_type_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
         # Graph Amount dropdown menu
         self.graph_amount_option_menu = ctk.CTkOptionMenu(
@@ -113,7 +157,7 @@ class SideBarGraph(ctk.CTkFrame):
         self.graph_amount_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
         # Graph Amount label
         self.graph_amount_label = ctk.CTkLabel(self, text="Graph Amount:", anchor="w")
-        self.graph_amount_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 0))
+        self.graph_amount_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
@@ -129,7 +173,7 @@ class SideBarGraph(ctk.CTkFrame):
         self.graph_mode_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
         # Graph Mode label
         self.graph_mode_label = ctk.CTkLabel(self, text="Graph Mode:", anchor="w")
-        self.graph_mode_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 0))
+        self.graph_mode_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
     def sidebar_button_event(self):
         print("sidebar_button click")
@@ -148,6 +192,18 @@ class SideBarGraph(ctk.CTkFrame):
     def change_graph_amount_event(self, value):
         print("Amount")
         print("Amount: ", value)
+
+
+class CustomDateEntry(DateEntry):
+    def __init__(self, master=None, dates: List[str] = [], **kw):
+        super().__init__(master, **kw)
+        self.dates = dates
+
+    def highlight_dates(self):
+        for date in self.dates:
+            dt = datetime.datetime.strptime(date, "%d-%m-%Y")
+            id = self._calendar.calevent_create(dt, date, date)
+            self._calendar.tag_config(date, background="#454545", foreground="white")
 
 
 class MainFrameGraph(ctk.CTkFrame):
@@ -188,7 +244,9 @@ class MainFrameGraph(ctk.CTkFrame):
 
         time = get_formatted_finnish_time(data[0][0])
 
-        fig, ax = plt.subplots(2, 2, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b")
+        fig, ax = plt.subplots(
+            2, 2, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
+        )
         fig.set_constrained_layout_pads()
         canvas = FigureCanvasTkAgg(fig, master=self)
         canvas.get_tk_widget().pack(padx=10, pady=10)
@@ -203,39 +261,58 @@ class MainFrameGraph(ctk.CTkFrame):
             ["visitors1", "visitors2", "visitors3", "visitors4"],
             ["purple", "blue", "red", "green"],
         )
-       
+
         canvas.draw()
 
-        fig, ax = plt.subplots(1,1, figsize=(20,20), layout="constrained", facecolor="#2b2b2b")
+        self.draw_amount_graphs(
+            4,
+            [[1, 2, 3, 4], x_values, x_values, x_values],
+            [[10, 20, 30, 40], y_values, y_values, y_values],
+            [ax[0, 0], ax[0, 1], ax[1, 0], ax[1, 1]],
+            [time, time, time, time],
+            ["time", "time", "time", "time4"],
+            ["visitors1", "visitors2", "visitors3", "visitors4"],
+            ["red", "blue", "green", "orange"],
+        )
 
-        
+        canvas.draw()
 
-        # annot = ax[0,0].annotate("", xy=(0,0), xytext=(-20,20),textcoords="offset points",
-        #             bbox=dict(boxstyle="round", fc="black", ec="b", lw=2),
-        #             arrowprops=dict(arrowstyle="->"))
-        # annot.set_visible(False)
+        fig, ax = plt.subplots(
+            2, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
+        )
+        canvas.figure = fig
+        # fig2.set_constrained_layout_pads()
+        # # canvas = FigureCanvasTkAgg(fig, master=self)
+        # # canvas.get_tk_widget().pack(padx=10, pady=10)
 
-        # canvas.mpl_connect("motion_notify_event", lambda event: self.hover(self))
+        self.draw_amount_graphs(
+            2,
+            [x_values, x_values],
+            [y_values, y_values],
+            [ax[0], ax[1]],
+            [time, time],
+            ["time", "time2"],
+            ["visitors1", "visitor2"],
+            ["purple", "red"],
+        )
 
-        # fig, ax = plt.subplots(2, 2, figsize=(20,20), layout="constrained")
-        # fig.set_constrained_layout_pads()
-        # canvas = FigureCanvasTkAgg(fig, master=self)
-        # canvas.get_tk_widget().pack()
+        canvas.draw()
 
-        # canvas.draw()
-
-        # bar_graph(x_values,y_values,ax[0,1],f"{time}  0,1","xlabel 0,1", "ylabel 0,1", 'purple')
-        # bar_graph(x_values,y_values,ax[0,0],f"{time}  0,0","xlabel 0,0", "ylabel 0,0", 'blue')
-        # bar_graph(x_values,y_values,ax[1,1],f"{time}  1,1","xlabel 1,1", "ylabel 1,1", 'red')
-        # bar_graph(x_values,y_values,ax[1,0],f"{time}  1,0","xlabel 1,0", "ylabel 1,0", 'green')
-
-        # bar_figure
-        # ax[0,0].set_title("Test")
-        # ax[0,0].set_xlabel("x test")
-        # ax[0,0].set_ylabel("y test")
-        # ax[0,0].bar(x_values,y_values)
-
-        # canvas.draw()
+        fig, ax = plt.subplots(
+            1, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
+        )
+        canvas.figure = fig
+        self.draw_amount_graphs(
+            1,
+            [x_values],
+            [y_values],
+            [ax],
+            [time],
+            ["time"],
+            ["visitors1"],
+            ["purple"],
+            graph_type="line",
+        )
 
     def draw_amount_graphs(
         self,
@@ -247,36 +324,73 @@ class MainFrameGraph(ctk.CTkFrame):
         x_labels: List[str | None],
         y_labels: List[str | None],
         colors: List,
+        graph_type: str = "bar",
     ):
-        for i in range(amount):
-            self._bar_graph(
-                x_values[i],
-                y_values[i],
-                ax[i],
-                titles[i],
-                x_labels[i],
-                y_labels[i],
-                colors[i],
-            )
+        if graph_type.lower() == "bar":
+            for i in range(amount):
+                self._bar_graph(
+                    x_values[i],
+                    y_values[i],
+                    ax[i],
+                    titles[i],
+                    x_labels[i],
+                    y_labels[i],
+                    colors[i],
+                )
+        elif graph_type.lower() == "line":
+            for i in range(amount):
+                self._line_graph(
+                    x_values[i],
+                    y_values[i],
+                    ax[i],
+                    titles[i],
+                    x_labels[i],
+                    y_labels[i],
+                    colors[i],
+                )
 
     def _bar_graph(self, x, y, ax, title=None, xlabel=None, ylabel=None, color=None):
-        ax.set_facecolor("white")
-        ax.set_title(title, color="white")
-        ax.set_xlabel(xlabel, color="white")
-        ax.set_ylabel(ylabel, color="white")
-        ax.yaxis.set_tick_params(color="white", labelcolor="white")
-        ax.xaxis.set_tick_params(color="white", labelcolor="white")
-        for spine in ax.axes.spines.values():
-            spine.set_edgecolor("grey")
+        self._graph_settings(
+            ax,
+            title=title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            colors="white",
+            edge_color="grey",
+        )
         ax.bar(x, y, color=color)
+
+    def _line_graph(self, x, y, ax, title=None, xlabel=None, ylabel=None, color=None):
+        self._graph_settings(
+            ax,
+            title=title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            colors="white",
+            edge_color="grey",
+        )
+        ax.plot(x, y, color=color, marker="o")
+
+    def _graph_settings(
+        self, ax, title=None, xlabel=None, ylabel=None, colors=None, edge_color=None
+    ):
+        ax.clear()
+        ax.set_facecolor(colors)
+        ax.set_title(title, color=colors)
+        ax.set_xlabel(xlabel, color=colors)
+        ax.set_ylabel(ylabel, color=colors)
+        ax.yaxis.set_tick_params(color=colors, labelcolor=colors)
+        ax.xaxis.set_tick_params(color=colors, labelcolor=colors)
+        for spine in ax.axes.spines.values():
+            spine.set_edgecolor(edge_color)
 
 
 class Menu(CTkMenuBar):
     def __init__(self, parent: App):
         super().__init__(parent, bg_color="#484848")
         self.file_button = self.add_cascade("File", text_color="white")
-        self.view_button = self.add_cascade("View")
-        self.help_button = self.add_cascade("Help")
+        self.view_button = self.add_cascade("View", text_color="white")
+        self.help_button = self.add_cascade("Help", text_color="white")
 
         # Buttons inside file
         self.file_dropdown = CustomDropdownMenu(master=parent, widget=self.file_button)
@@ -321,6 +435,25 @@ def bar_graph2(x, y, ax, title=None, xlabel=None, ylabel=None):
 
 def main():
     App("VisitorFlowTracker")
+
+    # ctk.set_appearance_mode("Dark")
+    # # ctk.set_default_color_theme("green")
+
+    # root = ctk.CTk()
+    # root.geometry("550x400")
+
+    # frame = ctk.CTkFrame(root)
+    # frame.pack(fill="both", padx=10, pady=10, expand=True)
+
+    # # style = ttk.Style(root)
+    # # style.theme_use("default")
+
+    # cal = Calendar(frame, selectmode='day', locale='en_US', disabledforeground='red',
+    #             cursor="hand2", background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
+    #             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1])
+    # cal.pack(fill="both", expand=True, padx=10, pady=10)
+
+    # root.mainloop()
 
 
 if __name__ == "__main__":
