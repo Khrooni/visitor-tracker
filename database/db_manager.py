@@ -41,7 +41,9 @@ class SQLiteDBManager:
             self.conn.close()
             self.conn = None
 
+
     def __del__(self):
+        """Closes db connection"""
         self._close()
 
     def add_data(

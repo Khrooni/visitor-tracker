@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import List
 import time
 
+# from ..database.db_manager import SQLiteDBManager
+
 
 @dataclass
 class Location:
@@ -162,6 +164,37 @@ def get_data_periodically(duration: int, interval: int) -> List[Location]:
         time.sleep(float(interval) - function_time)
 
     return location_data
+
+# def retrive_add_data(duration: int, interval: int) -> List[Location] | None:
+#     """
+#     Retrives data from a specific URL for given 'duration' in given 'interval'.
+
+#     Parameters:
+#         duration (int): Duration of data retrival in seconds. (Must be greater than > 0)
+#         interval (int): Interval of data retrival in seconds. (Must be greater than > 0)
+
+#     Returns:
+#         List[Location]: A list of retrived Location objects
+#         or an empty list if duration or interval was < 1.
+#     """
+#     end_time = time.time() + duration
+#     location_data: List[Location] = []
+
+#     if duration < 1 or interval < 1:
+#         return None
+
+#     # Continue fetching data until the end time is reached
+#     while time.time() < end_time:
+#         function_start = time.perf_counter()
+#         location_data = get_data()
+
+#         # Time it took took to execute data fetching
+#         function_time = time.perf_counter() - function_start
+
+#         # Wait for the specified interval before fetching data again
+#         time.sleep(float(interval) - function_time)
+
+#     return location_data
 
 def get_data():
     location_data: List[Location] = []
