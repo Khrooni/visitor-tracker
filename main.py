@@ -39,7 +39,7 @@ import math
 
 WINDOW_START_SIZE = (1100, 580)
 WINDOW_MIN_SIZE = (850, 450)
-SIDEBAR_WIDTH = 175
+SIDEBAR_WIDTH = 250
 SIDEBAR_BUTTON_WIDTH = 140
 DEFAULT_COL_INTERVAL = "30 min"
 DATA_COL_INTERVALS = {
@@ -174,14 +174,12 @@ class MainFrameGraph(ctk.CTkFrame):
         # self.fig, self.ax = plt.subplots(1, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b")
         # fig.set_constrained_layout_pads()
 
-
         fig, ax = plt.subplots(
             2, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
         )
-        
+
         canvas = FigureCanvasTkAgg(fig, master=self)
         canvas.get_tk_widget().pack(padx=10, pady=10)
-
 
         self.draw_amount_graphs(
             2,
@@ -194,8 +192,6 @@ class MainFrameGraph(ctk.CTkFrame):
             ["purple", "blue"],
         )
 
-
-    
         # fig, ax = plt.subplots(
         #     2, 2, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
         # )
@@ -373,29 +369,77 @@ class SideBarGraph(ctk.CTkFrame):
             db_handle.__del__()
 
         self.pack_propagate(False)
-        # self.pack(fill="y", side="left")
 
-        # Sidebar name text
+        # Sidebar "Graphs"-label
         self.logo_label = ctk.CTkLabel(
             self, text="Graphs", font=ctk.CTkFont(size=20, weight="bold")
         )
         self.logo_label.pack(side=tk.TOP, padx=10, pady=(20, 10))
 
-        # Sidebar button 1
-        self.sidebar_button_1 = ctk.CTkButton(
-            self, command=self.plot_bar_button_event, text="Plot Graph"
+        # "Plot All Graphs"-button
+        self.plot_all_button = ctk.CTkButton(
+            self, command=self.plot_all_button_event, text="Plot All Graphs"
         )
-        self.sidebar_button_1.pack(side=tk.TOP, padx=10, pady=10)
+        self.plot_all_button.pack(side=tk.TOP, padx=10, pady=10)
 
-        # Sidebar buton 2
-        self.sidebar_button_2 = ctk.CTkButton(
-            self, command=self.sidebar_button_event, text="Open Calendar"
-        )
-        self.sidebar_button_2.pack(side=tk.TOP, padx=10, pady=10)
-
-        self.cal = CustomDateEntry(
+        # Graph Amount label
+        self.graph_amount_label = ctk.CTkLabel(self, text="Graph Amount:", anchor="w")
+        self.graph_amount_label.pack(side=tk.TOP, padx=10, pady=(10, 0))
+        # Graph Amount dropdown menu
+        self.graph_amount_option_menu = ctk.CTkOptionMenu(
             self,
-            dates=self.unique_dates,
+            values=list(GRAPH_AMOUNTS.keys()),
+            command=self.change_graph_amount_event,
+            variable=ctk.StringVar(value=DEFAULT_GRAPH_AMOUNT),
+        )
+        self.graph_amount_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
+
+
+
+        # Create graph tabview
+        self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
+        self.tabview.pack(side=tk.BOTTOM)
+        self.graph1_tab = GraphTab(self.tabview, "Graph 1", self.unique_dates)
+        self.graph2_tab = GraphTab(self.tabview, "Graph 2",self.unique_dates)
+        self.graph3_tab = GraphTab(self.tabview, "Graph 3",self.unique_dates)
+        self.graph4_tab = GraphTab(self.tabview, "Graph 4",self.unique_dates)
+
+
+
+
+
+
+
+
+
+    def plot_all_button_event(self):
+        print("PLOTTING bar...")
+        self.main_frame.set_figure_ax(self.graph_amount)
+
+
+    def change_graph_amount_event(self, value):
+        print("Amount")
+        print("Amount: ", value)
+
+
+
+
+class GraphTab():
+    def __init__(self, parent: ctk.CTkTabview, tab_name: str, unique_dates: List[int]):
+        parent.add(tab_name)
+        self.handle = parent.tab(tab_name)
+        
+        # "Open Calendar"-button
+        self.open_calendar_button = ctk.CTkButton(
+            self.handle,
+            command=self.open_calendar_event,
+            text="Open Calendar",
+        )
+        self.open_calendar_button.pack(side=tk.TOP, padx=10, pady=10)
+        # Create Calendar
+        self.cal = CustomDateEntry(
+            self.handle,
+            dates=unique_dates,
             date_pattern="dd-mm-yyyy",
             font="Helvetica 20 bold",
             justify="center",
@@ -415,51 +459,38 @@ class SideBarGraph(ctk.CTkFrame):
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
         )
         self.cal.highlight_dates()
-        self.cal.pack()
+        self.cal.bind("<Key>", lambda e: "break") # Disable writing in calendar
+        self.cal.pack(side=tk.TOP)
 
-        # Graph Type dropdown menu
-        self.graph_type_option_menu = ctk.CTkOptionMenu(
-            self,
-            values=GRAPH_TYPES,
-            command=self.change_graph_type_event,
-            variable=ctk.StringVar(value=DEFAULT_GRAPH_TYPE),
-        )
-        self.graph_type_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
-        # Graph Type label
-        self.graph_type_label = ctk.CTkLabel(self, text="Graph Type:", anchor="w")
-        self.graph_type_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
-        # Graph Amount dropdown menu
-        self.graph_amount_option_menu = ctk.CTkOptionMenu(
-            self,
-            values=list(GRAPH_AMOUNTS.keys()),
-            command=self.change_graph_amount_event,
-            variable=ctk.StringVar(value=DEFAULT_GRAPH_AMOUNT),
-        )
-        self.graph_amount_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
-        # Graph Amount label
-        self.graph_amount_label = ctk.CTkLabel(self, text="Graph Amount:", anchor="w")
-        self.graph_amount_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
 
+        # Graph Mode label
+        self.graph_mode_label = ctk.CTkLabel(self.handle, text="Graph Mode:", anchor="w")
+        self.graph_mode_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
-            self,
+            self.handle,
             values=GRAPH_MODES,
             command=self.change_graph_mode_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_MODE),
         )
-        self.graph_mode_option_menu.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
-        # Graph Mode label
-        self.graph_mode_label = ctk.CTkLabel(self, text="Graph Mode:", anchor="w")
-        self.graph_mode_label.pack(side=tk.BOTTOM, padx=10, pady=(10, 10))
+        self.graph_mode_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
-    def sidebar_button_event(self):
+        # Graph Type label
+        self.graph_type_label = ctk.CTkLabel(self.handle, text="Graph Type:", anchor="w")
+        self.graph_type_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
+        # Graph Type dropdown menu
+        self.graph_type_option_menu = ctk.CTkOptionMenu(
+            self.handle,
+            values=GRAPH_TYPES,
+            command=self.change_graph_type_event,
+            variable=ctk.StringVar(value=DEFAULT_GRAPH_TYPE),
+        )
+        self.graph_type_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
+
+    def open_calendar_event(self):
         self.cal.drop_down()
-
-    def plot_bar_button_event(self):
-        print("PLOTTING bar...")
-        self.main_frame.set_figure_ax(self.graph_amount)
 
     def change_graph_type_event(self, value):
         print("appear")
@@ -468,11 +499,6 @@ class SideBarGraph(ctk.CTkFrame):
     def change_graph_mode_event(self, value):
         print("scale")
         print("value: ", value)
-
-    def change_graph_amount_event(self, value):
-        print("Amount")
-        print("Amount: ", value)
-
 
 class DatabasePage(ctk.CTkFrame):
     def __init__(self, parent):
@@ -610,7 +636,7 @@ class SideBarDatabase(ctk.CTkFrame):
         self, parent: DatabasePage, main_frame: MainFrameDatabase, width=SIDEBAR_WIDTH
     ):
         super().__init__(parent, width=width, corner_radius=0)
-        self.thread_id = 1 # Used for stopping data collection
+        self.thread_id = 1  # Used for stopping data collection
         self.col_interval = DEFAULT_COL_INTERVAL
 
         self.parent = parent
@@ -698,7 +724,7 @@ class SideBarDatabase(ctk.CTkFrame):
 
     def stop_collecting_data(self):
         self.start_button.lift()
-        self.thread_id += 1 # Stop data collection
+        self.thread_id += 1  # Stop data collection
         self.main_frame.toggle_collection()
         self.write_to_textbox("Data Collection Stopped!\n\n")
 
@@ -735,14 +761,16 @@ class SideBarDatabase(ctk.CTkFrame):
                         )
 
                 func_time = time.perf_counter() - start_time
-                sleep_time =max(0, (interval - func_time))
+                sleep_time = max(0, (interval - func_time))
                 time.sleep(sleep_time)  # Sleep for remaining time
         except Exception as e:
-            self.write_to_textbox(f"Data collection aborted. Restarting app might be necessary. Database error: {e}\n\n")
+            self.write_to_textbox(
+                f"Data collection aborted. Restarting app might be necessary. Database error: {e}\n\n"
+            )
             self.stop_collecting_data()  # Toggle data collection button off
         finally:
             db_handle.__del__()
-        
+
         return
 
     def _format_data(self, location_data: Location):
@@ -801,19 +829,6 @@ class Menu(CTkMenuBar):
         self.view_dropdown.add_option(
             option="something", command=lambda: print("something")
         )
-
-
-def bar_graph2(x, y, ax, title=None, xlabel=None, ylabel=None):
-    color = "purple"
-
-    # ax.clear()
-    bar_figure = plt.bar(x, y, color=color)
-    # bar_figure
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    # ax.bar(x,y)
-    return bar_figure
 
 
 def main():

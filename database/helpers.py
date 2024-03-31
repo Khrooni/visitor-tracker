@@ -2,6 +2,9 @@ import re
 import string
 from typing import List
 from datetime import datetime
+# from ..utils.helpers import get_finnish_date
+
+
 
 
 def are_ints(*args):
@@ -11,8 +14,12 @@ def are_ints(*args):
             return False
     return True
 
-def get_unique_epochs(all_epochs: List[int]) -> List[int]:
+def get_unique_epochs(all_epochs: List[int]) -> List[str]:
+    """
+    Returns a list 
+    """
     dates = [datetime.fromtimestamp(epoch).strftime("%d-%m-%Y") for epoch in all_epochs]
+    # dates = [get_finnish_date(epoch) for epoch in all_epochs]
 
     unique_dates = []
     seen_dates = set()
@@ -38,19 +45,19 @@ def valid_table_name(table_name: str) -> bool:
         return False
 
 
-def main():
-    test = "dsa231sadsad23321____31312321ädadäåqwertyuiopåäölkjhgfdsazxcvbnm"
-    test2 = "----;;;;2131321DELETE"
-    print(valid_table_name(test))
-    print(valid_table_name(test2))
-    print(valid_table_name(""))
-    print(valid_table_name("das-"))
-    print(valid_table_name("löä"))
-    print(valid_table_name(";"))
-    print(valid_table_name("+"))
-    print(valid_table_name("-"))
+# def main():
+#     test = "dsa231sadsad23321____31312321ädadäåqwertyuiopåäölkjhgfdsazxcvbnm"
+#     test2 = "----;;;;2131321DELETE"
+#     print(valid_table_name(test))
+#     print(valid_table_name(test2))
+#     print(valid_table_name(""))
+#     print(valid_table_name("das-"))
+#     print(valid_table_name("löä"))
+#     print(valid_table_name(";"))
+#     print(valid_table_name("+"))
+#     print(valid_table_name("-"))
 
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
