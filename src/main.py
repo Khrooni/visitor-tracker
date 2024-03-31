@@ -394,41 +394,28 @@ class SideBarGraph(ctk.CTkFrame):
         )
         self.graph_amount_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
-
-
         # Create graph tabview
         self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
         self.tabview.pack(side=tk.BOTTOM)
         self.graph1_tab = GraphTab(self.tabview, "Graph 1", self.unique_dates)
-        self.graph2_tab = GraphTab(self.tabview, "Graph 2",self.unique_dates)
-        self.graph3_tab = GraphTab(self.tabview, "Graph 3",self.unique_dates)
-        self.graph4_tab = GraphTab(self.tabview, "Graph 4",self.unique_dates)
-
-
-
-
-
-
-
-
+        self.graph2_tab = GraphTab(self.tabview, "Graph 2", self.unique_dates)
+        self.graph3_tab = GraphTab(self.tabview, "Graph 3", self.unique_dates)
+        self.graph4_tab = GraphTab(self.tabview, "Graph 4", self.unique_dates)
 
     def plot_all_button_event(self):
         print("PLOTTING bar...")
         self.main_frame.set_figure_ax(self.graph_amount)
-
 
     def change_graph_amount_event(self, value):
         print("Amount")
         print("Amount: ", value)
 
 
-
-
-class GraphTab():
+class GraphTab:
     def __init__(self, parent: ctk.CTkTabview, tab_name: str, unique_dates: List[int]):
         parent.add(tab_name)
         self.handle = parent.tab(tab_name)
-        
+
         # "Open Calendar"-button
         self.open_calendar_button = ctk.CTkButton(
             self.handle,
@@ -459,14 +446,13 @@ class GraphTab():
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
         )
         self.cal.highlight_dates()
-        self.cal.bind("<Key>", lambda e: "break") # Disable writing in calendar
+        self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.pack(side=tk.TOP)
 
-
-
-
         # Graph Mode label
-        self.graph_mode_label = ctk.CTkLabel(self.handle, text="Graph Mode:", anchor="w")
+        self.graph_mode_label = ctk.CTkLabel(
+            self.handle, text="Graph Mode:", anchor="w"
+        )
         self.graph_mode_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
@@ -478,7 +464,9 @@ class GraphTab():
         self.graph_mode_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
         # Graph Type label
-        self.graph_type_label = ctk.CTkLabel(self.handle, text="Graph Type:", anchor="w")
+        self.graph_type_label = ctk.CTkLabel(
+            self.handle, text="Graph Type:", anchor="w"
+        )
         self.graph_type_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
         # Graph Type dropdown menu
         self.graph_type_option_menu = ctk.CTkOptionMenu(
@@ -499,6 +487,7 @@ class GraphTab():
     def change_graph_mode_event(self, value):
         print("scale")
         print("value: ", value)
+
 
 class DatabasePage(ctk.CTkFrame):
     def __init__(self, parent):

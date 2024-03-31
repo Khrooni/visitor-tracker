@@ -12,7 +12,7 @@ import time
 
 
 DB_NAME = "visitorTrackingDB.db"
-DB_DIRECTORY = "database/"
+DB_DIRECTORY = "src/database/"
 DB_FILE_PATH = DB_DIRECTORY + DB_NAME
 
 
@@ -294,10 +294,10 @@ class SQLiteDBManager:
             return False
 
 
-def main():
+# def main():
 
-    i = 2
+#     i = 2
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
