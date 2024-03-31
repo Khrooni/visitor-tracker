@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import List
 import time
+import pytz
 
 # from ..database.db_manager import SQLiteDBManager
 
@@ -19,11 +20,13 @@ class Location:
 
     def _get_finnish_datetime(self) -> datetime:
         utc_datetime = datetime.fromtimestamp(self.epoch_timestamp)
-
-        finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
-
-        finnish_datetime = utc_datetime + finnish_time_offset
-
+        utc_timezone = pytz.utc
+        finnish_timezone = pytz.timezone('Europe/Helsinki')  # Finland timezone
+        
+        # Convert UTC time to Finnish time
+        utc_aware = utc_timezone.localize(utc_datetime)
+        finnish_datetime = utc_aware.astimezone(finnish_timezone)
+        
         return finnish_datetime
 
     def get_formatted_finnish_time(self) -> str | None:
@@ -34,9 +37,10 @@ class Location:
         Returns None if epoch timestamp was a value that couldn't be converted.
         """
         try:
-            return self._get_finnish_datetime().strftime("%d-%m-%Y %H:%M:%S EET")
+            return self._get_finnish_datetime().strftime("%d-%m-%Y %H:%M:%S %Z")
         except IOError:
             return None
+    
 
     def get_finnish_date(self) -> str | None:
         """Returns None if epoch timestamp was a value that couldn't be converted."""
@@ -108,27 +112,36 @@ def _parse_locations_data(response: requests.models.Response) -> List[Location]:
     return locations
 
 
-def epoch_to_finnish_time(epoch):
-    """
-    Converts the given epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
-    Format: 'DD-MM-YYYY HH:MM:SS EET'
+# def epoch_to_finnish_time(epoch):
+#     """
+#     Converts the given epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
+#     Format: 'DD-MM-YYYY HH:MM:SS EET'
 
-    Returns None if epoch was a value that couldn't be converted.
-    """
-    if epoch < 0:
-        return None
-    try:
-        utc_datetime = datetime.fromtimestamp(epoch)
+#     Returns None if epoch was a value that couldn't be converted.
+#     """
+#     if epoch < 0:
+#         return None
+#     try:
+#         # utc_datetime = datetime.fromtimestamp(epoch)
 
-        finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
+#         # finnish_time_offset = timedelta(hours=2)  # Finland (EET: UTC+2)
 
-        finnish_datetime = utc_datetime + finnish_time_offset
+#         # finnish_datetime = utc_datetime + finnish_time_offset
 
-        formatted_finnish_time = finnish_datetime.strftime("%d-%m-%Y %H:%M:%S EET")
-    except IOError:
-        return None
+#         utc_datetime = datetime.fromtimestamp(epoch)
+#         # print(utc_datetime)
+#         utc_timezone = pytz.utc
+#         finnish_timezone = pytz.timezone('Europe/Helsinki')  # Finland timezone
+        
+#         # Convert UTC time to Finnish time
+#         utc_aware = utc_timezone.localize(utc_datetime)
+#         finnish_datetime = utc_aware.astimezone(finnish_timezone)
 
-    return formatted_finnish_time
+#         formatted_finnish_time = finnish_datetime.strftime("%d-%m-%Y %H:%M:%S EET")
+#     except IOError:
+#         return None
+
+#     return formatted_finnish_time
 
 
 def get_data_periodically(duration: int, interval: int) -> List[Location]:
@@ -207,7 +220,42 @@ def get_data():
 
 def main():
     # data = get_data_periodically(60, 10)
-    print(epoch_to_finnish_time(100000))
+    yep = Location(1, "FUN", 1711875990, 10)
+    print(f'{8292}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711852213, 10)
+    print(f'{8268}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711846813, 10)
+    print(f'{8264}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711845013, 10)
+    print(f'{8263}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711843213, 10)
+    print(f'{8262}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711841413, 10)
+    print(f'{8261}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711839613, 10)
+    print(f'{8260}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711837813, 10)
+    print(f'{8259}: {yep.get_formatted_finnish_time()}\n')
+
+
+    yep = Location(1, "FUN", 1711834571, 10)
+    print(f'{8257}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711834213, 10)
+    print(f'{8251}: {yep.get_formatted_finnish_time()}\n')
+
+    yep = Location(1, "FUN", 1711833918, 10)
+    print(f'{8243}: {yep.get_formatted_finnish_time()}\n')
+
+
+
     # for i, location in enumerate(data):
     #     print()
     #     print(f"Time (iteration {i+1}): {location.get_formatted_finnish_time()}")
