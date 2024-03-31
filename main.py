@@ -23,7 +23,6 @@ import retrive_data
 from retrive_data import Location
 from utils import (
     time_to_epoch,
-    epoch_to_time,
     get_finnish_time,
     get_finnish_date,
     get_finnish_day,
@@ -139,17 +138,24 @@ class MainFrameGraph(ctk.CTkFrame):
         loppu = time_to_epoch("28-3-2024 00:00:00")
         # print(loppu)
 
+        alku1 = time_to_epoch("31-3-2024 00:00:00")
+        # print(alku)
+        loppu1 = time_to_epoch("1-4-2024 00:00:00")
+
         try:
             db = database.SQLiteDBManager()
             # data = db.get_activity_between(1, alku, loppu)
             # data = db.get_avg_activity_between(1, alku, loppu)
             data2 = db.get_avg_activity_between_peridiocally(1, alku, loppu, 60 * 60)
+            data1 = db.get_avg_activity_between_peridiocally(1, alku1, loppu1, 60 * 60)
         finally:
             db.__del__()
 
         x_values, y_values = convert_for_day_graph(data2)
+        x_values1, y_values1 = convert_for_day_graph(data1)
 
         time = get_formatted_finnish_time(data2[0][0])
+        time1 = get_formatted_finnish_time(data1[0][0])
 
         self.label = ctk.CTkLabel(
             self,
@@ -163,13 +169,33 @@ class MainFrameGraph(ctk.CTkFrame):
         )
         self.label.place(relx=0.5, rely=0.45, anchor=tk.CENTER)
 
-        # self.label.destroy()
+        self.label.destroy()
 
         # self.fig, self.ax = plt.subplots(1, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b")
         # fig.set_constrained_layout_pads()
-        # canvas = FigureCanvasTkAgg(fig, master=self)
-        # canvas.get_tk_widget().pack(padx=10, pady=10)
 
+
+        fig, ax = plt.subplots(
+            2, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
+        )
+        
+        canvas = FigureCanvasTkAgg(fig, master=self)
+        canvas.get_tk_widget().pack(padx=10, pady=10)
+
+
+        self.draw_amount_graphs(
+            2,
+            [x_values, x_values1],
+            [y_values, y_values1],
+            [ax[0], ax[1]],
+            [time, time1],
+            ["time1", "time2"],
+            ["visitors1", "visitors2"],
+            ["purple", "blue"],
+        )
+
+
+    
         # fig, ax = plt.subplots(
         #     2, 2, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
         # )
@@ -584,7 +610,7 @@ class SideBarDatabase(ctk.CTkFrame):
         self, parent: DatabasePage, main_frame: MainFrameDatabase, width=SIDEBAR_WIDTH
     ):
         super().__init__(parent, width=width, corner_radius=0)
-        self.stop_event = None
+        self.thread_id = 1 # Used for stopping data collection
         self.col_interval = DEFAULT_COL_INTERVAL
 
         self.parent = parent
@@ -660,7 +686,6 @@ class SideBarDatabase(ctk.CTkFrame):
         self.main_frame.write_to_textbox(text)
 
     def start_collecting_data(self):
-        self.stop_event.clear()  # Stop flag = False
         self.stop_button.lift()
         self.main_frame.toggle_collection()
         self.main_frame.change_interval_label(self.col_interval)
@@ -668,12 +693,12 @@ class SideBarDatabase(ctk.CTkFrame):
 
         threading.Thread(
             target=self._get_data_in_intervals,
-            args=(DATA_COL_INTERVALS.get(self.col_interval), self.stop_event),
+            args=(DATA_COL_INTERVALS.get(self.col_interval), self.thread_id),
         ).start()
 
     def stop_collecting_data(self):
         self.start_button.lift()
-        self.stop_event.set()  # Stop flag = True
+        self.thread_id += 1 # Stop data collection
         self.main_frame.toggle_collection()
         self.write_to_textbox("Data Collection Stopped!\n\n")
 
@@ -681,14 +706,13 @@ class SideBarDatabase(ctk.CTkFrame):
         self.col_interval = value  # Set sidebar interval
         self.main_frame.change_interval(value)  # Set main_frame interval
 
-    def _get_data_in_intervals(self, interval: int, stop_event: threading.Event):
+    def _get_data_in_intervals(self, interval: int, thread_id: int):
         try:
             db_handle = database.SQLiteDBManager()
 
-            while True:
+            # Collect data until theard_id changes
+            while thread_id == self.thread_id:
                 start_time = time.perf_counter()
-                if self.stop_event.is_set():
-                    break
 
                 data = retrive_data.get_data()
                 location: Location
