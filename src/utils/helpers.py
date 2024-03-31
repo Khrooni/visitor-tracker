@@ -213,32 +213,37 @@ def main():
     # print(_finnish_utc_offset("31-3-2024 04:00:13"))
     # print(_finnish_utc_offset("31-3-2024 16:00:13"))
 
-    epoch = 1711837813
-    utc = datetime.fromtimestamp(epoch)
-    muutettava_aika = '31-03-2024 02:30:13'
-    epoch_muunnos = time_to_epoch(muutettava_aika)
-    muunnos_takaisin = get_formatted_finnish_time(epoch_muunnos)
+    epoch = time_to_epoch("24-3-2024 00:00:00")
+    print(epoch)
+    print("Päivänä: ",time_to_epoch("25-3-2024 00:00:00"))
+    print("Plussana: ", epoch + 24*60*60)
+
+    # epoch = 1711837813
+    # utc = datetime.fromtimestamp(epoch)
+    # muutettava_aika = '31-03-2024 02:30:13'
+    # epoch_muunnos = time_to_epoch(muutettava_aika)
+    # muunnos_takaisin = get_formatted_finnish_time(epoch_muunnos)
     
-    print(f'Epoch: {epoch}')
-    print(f'UTC: {utc}')
-    print(f'FIN: {muutettava_aika}')
-    print(f'EPOCH muunnos: {epoch_muunnos}')
-    print(f'get_formatted_finnish_time: {muunnos_takaisin}')
-    print()
+    # print(f'Epoch: {epoch}')
+    # print(f'UTC: {utc}')
+    # print(f'FIN: {muutettava_aika}')
+    # print(f'EPOCH muunnos: {epoch_muunnos}')
+    # print(f'get_formatted_finnish_time: {muunnos_takaisin}')
+    # print()
 
 
 
-    epoch = 1711839613
-    utc = datetime.fromtimestamp(epoch)
-    muutettava_aika = '31-03-2024 04:00:13'
-    epoch_muunnos = time_to_epoch(muutettava_aika)
-    muunnos_takaisin = get_formatted_finnish_time(epoch_muunnos)
-    print(f'Epoch: {epoch}')
-    print(f'UTC: {utc}')
-    print(f'FIN: {muutettava_aika}')
-    print(f'EPOCH muunnos: {epoch_muunnos}')
-    print(f'get_formatted_finnish_time: {muunnos_takaisin}')
-    print()
+    # epoch = 1711839613
+    # utc = datetime.fromtimestamp(epoch)
+    # muutettava_aika = '31-03-2024 04:00:13'
+    # epoch_muunnos = time_to_epoch(muutettava_aika)
+    # muunnos_takaisin = get_formatted_finnish_time(epoch_muunnos)
+    # print(f'Epoch: {epoch}')
+    # print(f'UTC: {utc}')
+    # print(f'FIN: {muutettava_aika}')
+    # print(f'EPOCH muunnos: {epoch_muunnos}')
+    # print(f'get_formatted_finnish_time: {muunnos_takaisin}')
+    # print()
 
     # epoch = 1711837813
     # utc = datetime.fromtimestamp(epoch)
