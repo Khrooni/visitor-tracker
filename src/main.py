@@ -20,7 +20,6 @@ from retrive_data import Location
 import utils
 
 
-
 WINDOW_START_SIZE = (1100, 580)
 WINDOW_MIN_SIZE = (850, 450)
 SIDEBAR_WIDTH = 250
@@ -195,86 +194,6 @@ class GraphPage(ctk.CTkFrame):
             self.graph3.grid(sticky="nsew", row=1, column=0, padx=(10, 0), pady=(0, 10))
             self.graph4.grid(sticky="nsew", row=1, column=1, padx=(0, 10), pady=(0, 10))
 
-    # def set_canvas(self):
-    #     if self.fig is not None:
-    #         self.main_frame.set_canvas(self.fig)
-
-    # def set_canvas(self):
-
-    #     if (self.canvas is None) and (self.fig is not None):
-    #         self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
-    #         self.canvas.get_tk_widget().pack(padx=10, pady=10)
-    #     # # if self.canvas is not None:
-    #     # #     self.canvas.destroy()
-    #     # if  self.fig is not None:
-    #     #     self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
-    #     #     self.canvas.get_tk_widget().pack(padx=10, pady=10)
-
-    # def set_fig_and_ax(self, graph_amount=None):
-    #     if self.graph_amount == 1:
-    #         self.fig, axis = plt.subplots(
-    #             1,
-    #             1,
-    #             figsize=(20, 20),
-    #             layout="constrained",
-    #             facecolor="#2b2b2b",
-    #         )
-    #         self.graphs[0].ax = axis
-    #     elif self.graph_amount == 2:
-    #         self.fig, axes = plt.subplots(
-    #             2,
-    #             1,
-    #             figsize=(20, 20),
-    #             layout="constrained",
-    #             facecolor="#2b2b2b",
-    #         )
-    #         self.graphs[0].ax = axes[0]
-    #         self.graphs[1].ax = axes[1]
-    #     elif self.graph_amount == 4:
-    #         self.fig, axes = plt.subplots(
-    #             2,
-    #             2,
-    #             figsize=(20, 20),
-    #             layout="constrained",
-    #             facecolor="#2b2b2b",
-    #         )
-    #         self.graphs[0].ax = axes[0, 0]
-    #         self.graphs[1].ax = axes[0, 1]
-    #         self.graphs[2].ax = axes[1, 0]
-    #         self.graphs[3].ax = axes[1, 1]
-
-    # def set_fig_and_ax_2(self, graph_amount=None):
-    #     self.fig_list[0], axis = plt.subplots(
-    #         1,
-    #         1,
-    #         figsize=(20, 20),
-    #         layout="constrained",
-    #         facecolor="#2b2b2b",
-    #     )
-    #     self.graphs[0].ax = axis
-
-    #     self.fig_list[1], axes = plt.subplots(
-    #         2,
-    #         1,
-    #         figsize=(20, 20),
-    #         layout="constrained",
-    #         facecolor="#2b2b2b",
-    #     )
-    #     self.graphs[0].ax = axes[0]
-    #     self.graphs[1].ax = axes[1]
-
-    #     self.fig_list[2], axes = plt.subplots(
-    #         2,
-    #         2,
-    #         figsize=(20, 20),
-    #         layout="constrained",
-    #         facecolor="#2b2b2b",
-    #     )
-    #     self.graphs[0].ax = axes[0, 0]
-    #     self.graphs[1].ax = axes[0, 1]
-    #     self.graphs[2].ax = axes[1, 0]
-    #     self.graphs[3].ax = axes[1, 1]
-
 
 class SideBarGraph(ctk.CTkFrame):
     def __init__(
@@ -284,14 +203,6 @@ class SideBarGraph(ctk.CTkFrame):
     ):
         super().__init__(parent, width=width, corner_radius=0)
         self.parent: GraphPage = parent
-
-        # self.canvas = parent.canvas
-        # self.graphs = parent.graphs
-        # self.graph_amount = parent.graph_amount
-        # self.fig = parent.fig
-        # self.graph_mode = DEFAULT_GRAPH_AMOUNT
-        # self.graph_amount = DEFAULT_GRAPH_MODE
-        # self.graph_type = DEFAULT_GRAPH_TYPE
 
         self.unique_dates = []
 
@@ -376,30 +287,6 @@ class SideBarGraph(ctk.CTkFrame):
 
         self.parent.graph_amount = oikea
 
-    # def set_fig_and_ax(self, parent: App, amount: int):
-    #     """ """
-    #     if amount == 1:
-    #         self.fig, ax = plt.subplots(
-    #             1,
-    #             1,
-    #             figsize=(20, 20),
-    #             layout="constrained",
-    #             facecolor="#2b2b2b",
-    #         )
-    #         self.graphs[0].ax = ax
-    #     elif amount == 2:
-    #         self.fig, parent.ax = plt.subplots(
-    #             2, 1, figsize=(20, 20), layout="constrained", facecolor="#2b2b2b"
-    #         )
-    #     elif amount == 4:
-    #         parent.fig, parent.ax = plt.subplots(
-    #             2,
-    #             2,
-    #             figsize=(20, 20),
-    #             layout="constrained",
-    #             facecolor="#2b2b2b",
-    #         )
-
 
 class Graph(ctk.CTkFrame):
     def __init__(
@@ -435,13 +322,13 @@ class Graph(ctk.CTkFrame):
         self._get_graph_data()
         self._graph_settings()
         if self.graph_type.lower() == "bar graph":
-            self.ax.bar(self.x_values, self.y_values)
+            self.ax.bar(self.x_values, self.y_values, color=self.element_color)
         elif self.graph_type.lower() == "line graph":
             # if self.line is not None:
             #     self.line.set_data(self.x_values, self.y_values)
             # else:
             #     self.line = self.ax.plot(self.x_values, self.y_values)
-            self.line = self.ax.plot(self.x_values, self.y_values, marker="o")
+            self.line = self.ax.plot(self.x_values, self.y_values, color=self.element_color, marker="o")
 
         self.canvas.draw()
 
@@ -462,9 +349,14 @@ class Graph(ctk.CTkFrame):
         self.x_values, self.y_values = utils.convert_for_day_graph(data)
 
         # Korjaa! Lisää check, että oikean tyyppistä dataa.
-        date = utils.get_finnish_date(data[0][0])  # Korjaa! Ei voi olla data[0][0]
+        for time_stamp in data[0]:
+            if time_stamp is not None:
+                found_date = time_stamp
+                break
+        date = utils.get_finnish_date(found_date)
+        day = utils.get_finnish_day(found_date)
         location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
-        self.title = f"{location_name} {date}"
+        self.title = f"{location_name}, {day}, {date}"
         self.x_label = "Hour"
         self.y_label = "Visitors"
 
@@ -540,6 +432,7 @@ class GraphTab:
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
         )
         self.cal.highlight_dates()
+        self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Disable writing in calendar
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.pack(side=tk.TOP)
 
@@ -583,6 +476,10 @@ class GraphTab:
     def open_calendar_event(self):
         self.cal.drop_down()
         # self.graph.test_graph_date()
+    
+    def update_date(self, event):
+        self.graph.graph_date = self.cal.get_date().strftime("%d-%m-%Y")
+        print("Selected Date: ", self.cal.get_date())
 
     def change_graph_type_event(self, value):
         print("Set graph type to: ", value)
