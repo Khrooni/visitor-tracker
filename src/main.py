@@ -36,12 +36,12 @@ DATA_COL_INTERVALS = {
 GRAPH_AMOUNTS = {"1": 1, "2": 2, "4": 4}
 DEFAULT_GRAPH_AMOUNT = 1
 
-GRAPH_MODES = [
-    "Visitors",
-    "Average Visitors",
-    "Highest Visitors",
-    "Lowest Visitors",
-]
+GRAPH_MODES = {
+    "Visitors": "avg",
+    "Average Visitors": "all_time_avg",
+    "Highest Visitors": "max",
+    "Lowest Visitors": "min",
+}
 DEFAULT_GRAPH_MODE = "Visitors"
 
 GRAPH_TYPES = ["Bar Graph", "Line Graph"]
@@ -324,10 +324,11 @@ class Graph(ctk.CTkFrame):
         if self.graph_type.lower() == "bar graph":
             self.ax.bar(self.x_values, self.y_values, color=self.element_color)
         elif self.graph_type.lower() == "line graph":
-            # if self.line is not None:
-            #     self.line.set_data(self.x_values, self.y_values)
-            # else:
+            # if self.line is None:
             #     self.line = self.ax.plot(self.x_values, self.y_values)
+            # else:
+            #     self.line.set_data(self.x_values, self.y_values)
+
             self.line = self.ax.plot(self.x_values, self.y_values, color=self.element_color, marker="o")
 
         self.canvas.draw()
@@ -336,12 +337,14 @@ class Graph(ctk.CTkFrame):
         search_start = utils.time_to_epoch(f"{self.graph_date} 00:00:00")
         search_end = search_start + 24 * 60 * 60  # +24 hours
 
+        
+
         try:
             db_handle = database.SQLiteDBManager()
 
             # location_data = db_handle.get_locations()
-            data = db_handle.get_avg_activity_between_peridiocally(
-                1, search_start, search_end, 60 * 60
+            data = db_handle.get_mode_activity_between_peridiocally(
+                1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
             )
         finally:
             db_handle.__del__()
@@ -358,7 +361,7 @@ class Graph(ctk.CTkFrame):
         location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
         self.title = f"{location_name}, {day}, {date}"
         self.x_label = "Hour"
-        self.y_label = "Visitors"
+        self.y_label = self.graph_mode
 
     def _graph_settings(self):
         self.ax.clear()
@@ -444,7 +447,7 @@ class GraphTab:
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
             self.handle,
-            values=GRAPH_MODES,
+            values=list(GRAPH_MODES.keys()), 
             command=self.change_graph_mode_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_MODE),
         )
@@ -487,6 +490,7 @@ class GraphTab:
 
     def change_graph_mode_event(self, value):
         print("Set graph value to: ", value)
+        # oikea = GRAPH_MODES.get(value)
         self.graph.graph_mode = value
 
 
@@ -737,7 +741,7 @@ class SideBarDatabase(ctk.CTkFrame):
                         )
                     else:
                         self.write_to_textbox(
-                            f"Added to the database: \n{self._format_data(location)}\n\n"
+                            f"Added to the database: {self._format_data(location)}\n\n"
                         )
 
                 func_time = time.perf_counter() - start_time
@@ -754,9 +758,11 @@ class SideBarDatabase(ctk.CTkFrame):
         return
 
     def _format_data(self, location_data: Location):
-        formatted_str = f"""Location name: {location_data.location_name}
-                        \nTime: {location_data.get_formatted_finnish_time()}
-                        \nVisitor amount: {location_data.location_visitors}"""
+        formatted_str = f"""
+        \tLocation name: {location_data.location_name}
+        \tTime: {location_data.get_formatted_finnish_time()}
+        \tVisitor amount: {location_data.location_visitors}
+        """
 
         return formatted_str
 
@@ -813,6 +819,17 @@ class Menu(CTkMenuBar):
 
 def main():
     App("VisitorFlowTracker")
+
+
+    # try:
+    #     db_handle = database.SQLiteDBManager()
+    #     unique_dates1 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "avg", interval=60*60)
+    #     unique_dates2 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "min", interval=60*60)
+    #     unique_dates3 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "max", interval=60*60)
+    # finally:
+    #     db_handle.__del__()
+    # print("yep")
+
 
 
 if __name__ == "__main__":
