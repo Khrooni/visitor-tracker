@@ -20,10 +20,10 @@ from retrive_data import Location
 import utils
 
 
-WINDOW_START_SIZE = (1100, 580)
-WINDOW_MIN_SIZE = (850, 450)
-SIDEBAR_WIDTH = 250
-SIDEBAR_BUTTON_WIDTH = 140
+WINDOW_START_SIZE = (1100, 700)
+WINDOW_MIN_SIZE = (850, 550)
+SIDEBAR_WIDTH = 300
+SIDEBAR_BUTTON_WIDTH = 170
 DEFAULT_COL_INTERVAL = "30 min"
 DATA_COL_INTERVALS = {
     "30 sec": 30,
@@ -152,7 +152,7 @@ class GraphPage(ctk.CTkFrame):
         self.all_graphs[graph_num].draw_graph()
 
         self.active_graph_amount = self.graph_amount
-        pass
+ 
 
     def _arrange_graphs(self):
         self.label.destroy()
@@ -222,7 +222,7 @@ class SideBarGraph(ctk.CTkFrame):
 
         # "Plot All Graphs"-button
         self.plot_all_button = ctk.CTkButton(
-            self, command=self.plot_all_button_event, text="Plot All Graphs"
+            self, command=self.plot_all_button_event, text="Plot All Graphs", width=SIDEBAR_BUTTON_WIDTH
         )
         self.plot_all_button.pack(side=tk.TOP, padx=10, pady=10)
 
@@ -235,12 +235,13 @@ class SideBarGraph(ctk.CTkFrame):
             values=list(GRAPH_AMOUNTS.keys()),
             command=self.change_graph_amount_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_AMOUNT),
+            width=SIDEBAR_BUTTON_WIDTH
         )
         self.graph_amount_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
         # Create graph tabview
         self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
-        self.tabview.pack(side=tk.BOTTOM)
+        self.tabview.pack(side=tk.TOP, fill="y",expand=True,pady=(25,10), padx=5)
         self.graph1_tab = GraphTab(
             self.tabview,
             "Graph 1",
@@ -401,6 +402,7 @@ class GraphTab:
             self.handle,
             command=self.plot_graph_event,
             text="Plot Graph",
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.plot_graph_button.pack(side=tk.TOP, padx=10, pady=(10, 20))
 
@@ -409,17 +411,23 @@ class GraphTab:
             self.handle,
             command=self.open_calendar_event,
             text="Open Calendar",
+            width=SIDEBAR_BUTTON_WIDTH
         )
         self.open_calendar_button.pack(side=tk.TOP, padx=10, pady=10)
+
+        # Create constructive frame for Calendar
+        self.cal_frame = ctk.CTkFrame(self.handle, width=SIDEBAR_BUTTON_WIDTH, height=30)
+        self.cal_frame.pack(side=tk.TOP)
+        self.cal_frame.pack_propagate(False)
+
         # Create Calendar
-        sel = tk.StringVar()
         self.cal = CustomDateEntry(
-            self.handle,
+            self.cal_frame,
             dates=unique_dates,
             date_pattern="dd-mm-yyyy",
             font="Helvetica 20 bold",
             justify="center",
-            width=12,
+            # width=int(SIDEBAR_BUTTON_WIDTH/15),
             bg="#1E6FBA",
             fg="yellow",
             disabledbackground="#1E6FBA",
@@ -435,9 +443,10 @@ class GraphTab:
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
         )
         self.cal.highlight_dates()
-        self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Disable writing in calendar
+        self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
-        self.cal.pack(side=tk.TOP)
+        self.cal.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
+        self.cal.pack(side=tk.TOP, fill='both', expand=True)
 
         # Graph Mode label
         self.graph_mode_label = ctk.CTkLabel(
@@ -450,6 +459,7 @@ class GraphTab:
             values=list(GRAPH_MODES.keys()), 
             command=self.change_graph_mode_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_MODE),
+            width=SIDEBAR_BUTTON_WIDTH
         )
         self.graph_mode_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
@@ -464,6 +474,7 @@ class GraphTab:
             values=GRAPH_TYPES,
             command=self.change_graph_type_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_TYPE),
+            width=SIDEBAR_BUTTON_WIDTH
         )
         self.graph_type_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
 
@@ -478,7 +489,6 @@ class GraphTab:
 
     def open_calendar_event(self):
         self.cal.drop_down()
-        # self.graph.test_graph_date()
     
     def update_date(self, event):
         self.graph.graph_date = self.cal.get_date().strftime("%d-%m-%Y")
@@ -492,6 +502,10 @@ class GraphTab:
         print("Set graph value to: ", value)
         # oikea = GRAPH_MODES.get(value)
         self.graph.graph_mode = value
+
+    
+    def test(self, event):
+        pass
 
 
 class DatabasePage(ctk.CTkFrame):
@@ -542,6 +556,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             pady=10,
         )
         self.textbox.bind("<Key>", lambda e: "break")
+        self.textbox.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
 
         self.pack_propagate(False)
         self.pack(fill="both", expand=True, side=side, padx=10, pady=10)
@@ -689,6 +704,7 @@ class SideBarDatabase(ctk.CTkFrame):
             values=list(DATA_COL_INTERVALS.keys()),
             command=self.change_interval_event,
             variable=ctk.StringVar(value=DEFAULT_COL_INTERVAL),
+            width=SIDEBAR_BUTTON_WIDTH
         )
         self.interval_option_menu.pack(side=tk.TOP, padx=10, pady=(10, 10))
 
@@ -701,10 +717,12 @@ class SideBarDatabase(ctk.CTkFrame):
         self.main_frame.change_interval_label(self.col_interval)
         self.write_to_textbox("Data Collection Started!\n\n")
 
-        threading.Thread(
+        deamon_thread = threading.Thread(
             target=self._get_data_in_intervals,
             args=(DATA_COL_INTERVALS.get(self.col_interval), self.thread_id),
-        ).start()
+        )
+        deamon_thread.daemon = True
+        deamon_thread.start()
 
     def stop_collecting_data(self):
         self.start_button.lift()
@@ -755,7 +773,7 @@ class SideBarDatabase(ctk.CTkFrame):
         finally:
             db_handle.__del__()
 
-        return
+        # return
 
     def _format_data(self, location_data: Location):
         formatted_str = f"""
@@ -768,7 +786,9 @@ class SideBarDatabase(ctk.CTkFrame):
 
 
 class CustomDateEntry(DateEntry):
-    def __init__(self, master=None, dates: List[str] = [], **kw):
+    def __init__(self, master=None, dates: List[str] = None, **kw):
+        if dates is None:
+            dates = []
         super().__init__(master, **kw)
         self.dates = dates
 
@@ -776,7 +796,6 @@ class CustomDateEntry(DateEntry):
         for date in self.dates:
             dt = datetime.datetime.strptime(date, "%d-%m-%Y")
             self._calendar.calevent_create(dt, date, date)
-            # self._calendar.tag_config(date, background="#09ff08", foreground="white")
             self._calendar.tag_config(date, background="#19a84c", foreground="white")
 
 
@@ -821,14 +840,7 @@ def main():
     App("VisitorFlowTracker")
 
 
-    # try:
-    #     db_handle = database.SQLiteDBManager()
-    #     unique_dates1 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "avg", interval=60*60)
-    #     unique_dates2 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "min", interval=60*60)
-    #     unique_dates3 = db_handle.get_mode_activity_between_peridiocally(1, 1711986071, 1712067936, "max", interval=60*60)
-    # finally:
-    #     db_handle.__del__()
-    # print("yep")
+
 
 
 
