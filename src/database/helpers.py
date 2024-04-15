@@ -14,6 +14,10 @@ def are_ints(*args):
             return False
     return True
 
+def calculate_days(start: int, end: int, weekday:str):
+    next_weekday = utils.next_weekday(start, weekday)
+    previous_weekday = utils.previous_weekday(end, weekday)
+
 def get_unique_epochs(all_epochs: List[int]) -> List[str]:
     """
     Returns a list 
