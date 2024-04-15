@@ -51,9 +51,8 @@ DEFAULT_GRAPH_DATE = datetime.datetime.now().strftime("%d-%m-%Y")
 TEXTBOX_WIDTH = 350
 
 
-DATE_ENTRY_FONT_SMALLNESS = 7 # Smaller number -> Smaller font size
-CALENDAR_FONT_SMALLNESS = 12 # Smaller number -> Smaller font size
-
+DATE_ENTRY_FONT_SMALLNESS = 7  # Smaller number -> Smaller font size
+CALENDAR_FONT_SMALLNESS = 12  # Smaller number -> Smaller font size
 
 
 class App(ctk.CTk):
@@ -157,7 +156,6 @@ class GraphPage(ctk.CTkFrame):
         self.all_graphs[graph_num].draw_graph()
 
         self.active_graph_amount = self.graph_amount
- 
 
     def _arrange_graphs(self):
         self.label.destroy()
@@ -227,7 +225,10 @@ class SideBarGraph(ctk.CTkFrame):
 
         # "Plot All Graphs"-button
         self.plot_all_button = ctk.CTkButton(
-            self, command=self.plot_all_button_event, text="Plot All Graphs", width=SIDEBAR_BUTTON_WIDTH
+            self,
+            command=self.plot_all_button_event,
+            text="Plot All Graphs",
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.plot_all_button.pack(side=ctk.TOP, padx=10, pady=10)
 
@@ -240,13 +241,13 @@ class SideBarGraph(ctk.CTkFrame):
             values=list(GRAPH_AMOUNTS.keys()),
             command=self.change_graph_amount_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_AMOUNT),
-            width=SIDEBAR_BUTTON_WIDTH
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_amount_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
         # Create graph tabview
         self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
-        self.tabview.pack(side=ctk.TOP, fill="y",expand=True,pady=(25,10), padx=10)
+        self.tabview.pack(side=ctk.TOP, fill="y", expand=True, pady=(25, 10), padx=10)
         self.graph1_tab = GraphTab(
             self.tabview,
             "Graph 1",
@@ -335,15 +336,15 @@ class Graph(ctk.CTkFrame):
             # else:
             #     self.line.set_data(self.x_values, self.y_values)
 
-            self.line = self.ax.plot(self.x_values, self.y_values, color=self.element_color, marker="o")
+            self.line = self.ax.plot(
+                self.x_values, self.y_values, color=self.element_color, marker="o"
+            )
 
         self.canvas.draw()
 
     def _get_graph_data(self):
         search_start = utils.time_to_epoch(f"{self.graph_date} 00:00:00")
         search_end = search_start + 24 * 60 * 60  # +24 hours
-
-        
 
         try:
             db_handle = database.SQLiteDBManager()
@@ -416,12 +417,14 @@ class GraphTab:
             self.handle,
             command=self.open_calendar_event,
             text="Open Calendar",
-            width=SIDEBAR_BUTTON_WIDTH
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.open_calendar_button.pack(side=ctk.TOP, padx=10, pady=10)
 
         # Create constructive frame for Calendar
-        self.cal_frame = ctk.CTkFrame(self.handle, width=SIDEBAR_BUTTON_WIDTH, height=30)
+        self.cal_frame = ctk.CTkFrame(
+            self.handle, width=SIDEBAR_BUTTON_WIDTH, height=30
+        )
         self.cal_frame.pack(side=ctk.TOP)
         self.cal_frame.pack_propagate(False)
 
@@ -450,7 +453,7 @@ class GraphTab:
         self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
-        self.cal.pack(side=ctk.TOP, fill='both', expand=True)
+        self.cal.pack(side=ctk.TOP, fill="both", expand=True)
 
         # Graph Mode label
         self.graph_mode_label = ctk.CTkLabel(
@@ -460,10 +463,10 @@ class GraphTab:
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
             self.handle,
-            values=list(GRAPH_MODES.keys()), 
+            values=list(GRAPH_MODES.keys()),
             command=self.change_graph_mode_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_MODE),
-            width=SIDEBAR_BUTTON_WIDTH
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_mode_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
@@ -478,7 +481,7 @@ class GraphTab:
             values=GRAPH_TYPES,
             command=self.change_graph_type_event,
             variable=ctk.StringVar(value=DEFAULT_GRAPH_TYPE),
-            width=SIDEBAR_BUTTON_WIDTH
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_type_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
@@ -493,7 +496,7 @@ class GraphTab:
 
     def open_calendar_event(self):
         self.cal.drop_down()
-    
+
     def update_date(self, event):
         self.graph.graph_date = self.cal.get_date().strftime("%d-%m-%Y")
         print("Selected Date: ", self.cal.get_date())
@@ -507,7 +510,6 @@ class GraphTab:
         # oikea = GRAPH_MODES.get(value)
         self.graph.graph_mode = value
 
-    
     def test(self, event):
         pass
 
@@ -708,7 +710,7 @@ class SideBarDatabase(ctk.CTkFrame):
             values=list(DATA_COL_INTERVALS.keys()),
             command=self.change_interval_event,
             variable=ctk.StringVar(value=DEFAULT_COL_INTERVAL),
-            width=SIDEBAR_BUTTON_WIDTH
+            width=SIDEBAR_BUTTON_WIDTH,
         )
         self.interval_option_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -782,7 +784,7 @@ class SideBarDatabase(ctk.CTkFrame):
     def _format_data(self, location_data: Location):
         formatted_str = f"""
         \tLocation name: {location_data.location_name}
-        \tTime: {location_data.get_formatted_finnish_time()}
+        \tTime: {utils.get_formatted_finnish_time(location_data.epoch_timestamp)}
         \tVisitor amount: {location_data.location_visitors}
         """
 
@@ -801,16 +803,20 @@ class CustomDateEntry(DateEntry):
     def configure_size(self):
         # Calculate the font size based on the width of the widget
         width = self.winfo_width()
-        font_size = int(width/DATE_ENTRY_FONT_SMALLNESS)
-        cal_font_size = int(width/CALENDAR_FONT_SMALLNESS)
-        
+        font_size = int(width / DATE_ENTRY_FONT_SMALLNESS)
+        cal_font_size = int(width / CALENDAR_FONT_SMALLNESS)
+
         # Create a font object with the calculated size
-        self.custom_font = ctk.CTkFont(family="Helvetica", size=font_size, weight="bold")
-        self.custom_cal_font = ctk.CTkFont(family="Helvetica", size=cal_font_size, weight="bold")
-        
+        self.custom_font = ctk.CTkFont(
+            family="Helvetica", size=font_size, weight="bold"
+        )
+        self.custom_cal_font = ctk.CTkFont(
+            family="Helvetica", size=cal_font_size, weight="bold"
+        )
+
         # Update the font configuration for the widget
         self.configure(font=self.custom_font)
-        self._calendar.configure(font=self.custom_cal_font) 
+        self._calendar.configure(font=self.custom_cal_font)
 
     def highlight_dates(self):
         for date in self.dates:
@@ -820,7 +826,6 @@ class CustomDateEntry(DateEntry):
 
     def update_on_resize(self, event):
         self.configure_size()
-
 
 
 class Menu(CTkMenuBar):
@@ -862,10 +867,6 @@ class Menu(CTkMenuBar):
 
 def main():
     App("VisitorFlowTracker")
-
-
-
-
 
 
 if __name__ == "__main__":
