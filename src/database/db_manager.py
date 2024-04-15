@@ -4,7 +4,7 @@ from typing import List
 import re
 import math
 
-from .helpers import are_ints, get_unique_epochs
+from .helpers import are_ints, get_unique_epochs, calculate_days
 
 
 import time
@@ -141,8 +141,6 @@ class SQLiteDBManager:
 
         return activity_list
 
-
-
     def get_mode_activity_between(
         self, location_id: int, start: int, end: int, mode: str
     ) -> tuple | None:
@@ -220,6 +218,27 @@ class SQLiteDBManager:
 
         return activity_list
 
+    def get_average_visitors(self, location_id: int, weekday: str) -> List[tuple]:
+        weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+        return
+
+    def get_day(self, location_id: int, weekday: str) -> tuple[int, int, int]:
+        pstmt_first: str = "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?)"
+        pstmt_last: str = "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?) ORDER BY epoch_timestamp DESC"
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt_first, (location_id,))
+            first_timestamp = cursor.fetchone()[0]
+            cursor.execute(pstmt_last, (location_id,))
+            last_timestamp = cursor.fetchone()[0]
+
+        
+        amount = calculate_days(first_timestamp, last_timestamp, weekday)
+
+        print(first_timestamp)
+        print(last_timestamp)
+        return first_timestamp, last_timestamp, amount
 
     def get_locations(self) -> List[tuple[int, str]]:
         return self.get_all("locations")
