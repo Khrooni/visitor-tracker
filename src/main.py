@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from tkcalendar import DateEntry
+from tkcalendar import DateEntry, Calendar
 
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -20,7 +20,7 @@ from retrive_data import Location
 import utils
 
 
-WINDOW_START_SIZE = (1100, 700)
+WINDOW_START_SIZE = (1100, 600)
 WINDOW_MIN_SIZE = (850, 550)
 SIDEBAR_WIDTH = 300
 SIDEBAR_BUTTON_WIDTH = 170
@@ -49,6 +49,11 @@ DEFAULT_GRAPH_TYPE = "Bar Graph"
 DEFAULT_GRAPH_DATE = datetime.datetime.now().strftime("%d-%m-%Y")
 
 TEXTBOX_WIDTH = 350
+
+
+DATE_ENTRY_FONT_SMALLNESS = 7 # Smaller number -> Smaller font size
+CALENDAR_FONT_SMALLNESS = 12 # Smaller number -> Smaller font size
+
 
 
 class App(ctk.CTk):
@@ -118,7 +123,7 @@ class GraphPage(ctk.CTkFrame):
             bg_color="transparent",
             corner_radius=10,
         )
-        self.label.place(relx=0.5, rely=0.45, anchor=tk.CENTER)
+        self.label.place(relx=0.5, rely=0.45, anchor=ctk.CENTER)
         # self.label.destroy()
 
         self.graph1 = Graph(self.main_frame, element_color="red", padx=0, pady=0)
@@ -163,7 +168,7 @@ class GraphPage(ctk.CTkFrame):
             self.graph3.grid_forget()
             self.graph4.grid_forget()
 
-            self.graph1.pack(side=tk.TOP, fill="both", expand=True, padx=10, pady=10)
+            self.graph1.pack(side=ctk.TOP, fill="both", expand=True, padx=10, pady=10)
             self.graph2.pack_forget()
             self.graph3.pack_forget()
             self.graph4.pack_forget()
@@ -174,10 +179,10 @@ class GraphPage(ctk.CTkFrame):
             self.graph4.grid_forget()
 
             self.graph1.pack(
-                side=tk.TOP, fill="both", expand=True, padx=10, pady=(10, 0)
+                side=ctk.TOP, fill="both", expand=True, padx=10, pady=(10, 0)
             )
             self.graph2.pack(
-                side=tk.TOP, fill="both", expand=True, padx=10, pady=(0, 10)
+                side=ctk.TOP, fill="both", expand=True, padx=10, pady=(0, 10)
             )
             self.graph3.pack_forget()
             self.graph4.pack_forget()
@@ -218,17 +223,17 @@ class SideBarGraph(ctk.CTkFrame):
         self.logo_label = ctk.CTkLabel(
             self, text="Graphs", font=ctk.CTkFont(size=20, weight="bold")
         )
-        self.logo_label.pack(side=tk.TOP, padx=10, pady=(20, 10))
+        self.logo_label.pack(side=ctk.TOP, padx=10, pady=(20, 10))
 
         # "Plot All Graphs"-button
         self.plot_all_button = ctk.CTkButton(
             self, command=self.plot_all_button_event, text="Plot All Graphs", width=SIDEBAR_BUTTON_WIDTH
         )
-        self.plot_all_button.pack(side=tk.TOP, padx=10, pady=10)
+        self.plot_all_button.pack(side=ctk.TOP, padx=10, pady=10)
 
         # Graph Amount label
         self.graph_amount_label = ctk.CTkLabel(self, text="Graph Amount:", anchor="w")
-        self.graph_amount_label.pack(side=tk.TOP, padx=10, pady=(10, 0))
+        self.graph_amount_label.pack(side=ctk.TOP, padx=10, pady=(10, 0))
         # Graph Amount dropdown menu
         self.graph_amount_option_menu = ctk.CTkOptionMenu(
             self,
@@ -237,11 +242,11 @@ class SideBarGraph(ctk.CTkFrame):
             variable=ctk.StringVar(value=DEFAULT_GRAPH_AMOUNT),
             width=SIDEBAR_BUTTON_WIDTH
         )
-        self.graph_amount_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
+        self.graph_amount_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
         # Create graph tabview
         self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
-        self.tabview.pack(side=tk.TOP, fill="y",expand=True,pady=(25,10), padx=5)
+        self.tabview.pack(side=ctk.TOP, fill="y",expand=True,pady=(25,10), padx=10)
         self.graph1_tab = GraphTab(
             self.tabview,
             "Graph 1",
@@ -404,7 +409,7 @@ class GraphTab:
             text="Plot Graph",
             width=SIDEBAR_BUTTON_WIDTH,
         )
-        self.plot_graph_button.pack(side=tk.TOP, padx=10, pady=(10, 20))
+        self.plot_graph_button.pack(side=ctk.TOP, padx=10, pady=(10, 20))
 
         # "Open Calendar"-button
         self.open_calendar_button = ctk.CTkButton(
@@ -413,11 +418,11 @@ class GraphTab:
             text="Open Calendar",
             width=SIDEBAR_BUTTON_WIDTH
         )
-        self.open_calendar_button.pack(side=tk.TOP, padx=10, pady=10)
+        self.open_calendar_button.pack(side=ctk.TOP, padx=10, pady=10)
 
         # Create constructive frame for Calendar
         self.cal_frame = ctk.CTkFrame(self.handle, width=SIDEBAR_BUTTON_WIDTH, height=30)
-        self.cal_frame.pack(side=tk.TOP)
+        self.cal_frame.pack(side=ctk.TOP)
         self.cal_frame.pack_propagate(False)
 
         # Create Calendar
@@ -425,9 +430,8 @@ class GraphTab:
             self.cal_frame,
             dates=unique_dates,
             date_pattern="dd-mm-yyyy",
-            font="Helvetica 20 bold",
             justify="center",
-            # width=int(SIDEBAR_BUTTON_WIDTH/15),
+            width=SIDEBAR_BUTTON_WIDTH,
             bg="#1E6FBA",
             fg="yellow",
             disabledbackground="#1E6FBA",
@@ -446,13 +450,13 @@ class GraphTab:
         self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
-        self.cal.pack(side=tk.TOP, fill='both', expand=True)
+        self.cal.pack(side=ctk.TOP, fill='both', expand=True)
 
         # Graph Mode label
         self.graph_mode_label = ctk.CTkLabel(
             self.handle, text="Graph Mode:", anchor="w"
         )
-        self.graph_mode_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
+        self.graph_mode_label.pack(side=ctk.TOP, padx=10, pady=(10, 10))
         # Graph Mode dropdown menu
         self.graph_mode_option_menu = ctk.CTkOptionMenu(
             self.handle,
@@ -461,13 +465,13 @@ class GraphTab:
             variable=ctk.StringVar(value=DEFAULT_GRAPH_MODE),
             width=SIDEBAR_BUTTON_WIDTH
         )
-        self.graph_mode_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
+        self.graph_mode_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
         # Graph Type label
         self.graph_type_label = ctk.CTkLabel(
             self.handle, text="Graph Type:", anchor="w"
         )
-        self.graph_type_label.pack(side=tk.TOP, padx=10, pady=(10, 10))
+        self.graph_type_label.pack(side=ctk.TOP, padx=10, pady=(10, 10))
         # Graph Type dropdown menu
         self.graph_type_option_menu = ctk.CTkOptionMenu(
             self.handle,
@@ -476,7 +480,7 @@ class GraphTab:
             variable=ctk.StringVar(value=DEFAULT_GRAPH_TYPE),
             width=SIDEBAR_BUTTON_WIDTH
         )
-        self.graph_type_option_menu.pack(side=tk.TOP, padx=10, pady=(0, 10))
+        self.graph_type_option_menu.pack(side=ctk.TOP, padx=10, pady=(0, 10))
 
     def plot_graph_event(self):
         print("plot single graph")
@@ -520,7 +524,7 @@ class DatabasePage(ctk.CTkFrame):
 
 class MainFrameDatabase(ctk.CTkFrame):
     def __init__(
-        self, parent: DatabasePage, width=0, side=tk.RIGHT, expand=False, fill=None
+        self, parent: DatabasePage, width=0, side=ctk.RIGHT, expand=False, fill=None
     ):
         super().__init__(parent)
         self.col_interval = DEFAULT_COL_INTERVAL
@@ -528,7 +532,7 @@ class MainFrameDatabase(ctk.CTkFrame):
 
         # create frame for textbox label and textbox
         self.textbox_frame = ctk.CTkFrame(parent, width=TEXTBOX_WIDTH)
-        self.textbox_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
+        self.textbox_frame.pack(side=ctk.RIGHT, fill=ctk.Y, padx=(0, 10), pady=10)
         self.textbox_frame.pack_propagate(False)
         # create textbox label
         self.textbox_label = ctk.CTkLabel(
@@ -542,15 +546,15 @@ class MainFrameDatabase(ctk.CTkFrame):
             corner_radius=10,
         )
         self.textbox_label.pack(
-            side=tk.TOP,
+            side=ctk.TOP,
             padx=10,
             pady=(10, 0),
         )
         # create textbox (read only)
         self.textbox = ctk.CTkTextbox(self.textbox_frame)
         self.textbox.pack(
-            side=tk.TOP,
-            fill=tk.BOTH,
+            side=ctk.TOP,
+            fill=ctk.BOTH,
             expand=True,
             padx=10,
             pady=10,
@@ -572,7 +576,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             bg_color="transparent",
             corner_radius=10,
         )
-        self.info_label.pack(side=tk.TOP, pady=10)
+        self.info_label.pack(side=ctk.TOP, pady=10)
 
         # collection Checkbox
         self.collection_checkbox = ctk.CTkCheckBox(
@@ -584,8 +588,8 @@ class MainFrameDatabase(ctk.CTkFrame):
             fg_color="green",
             border_color="red",
         )
-        self.collection_checkbox.configure(state=tk.DISABLED)
-        self.collection_checkbox.pack(side=tk.TOP, pady=(50, 0))
+        self.collection_checkbox.configure(state=ctk.DISABLED)
+        self.collection_checkbox.pack(side=ctk.TOP, pady=(50, 0))
 
         self.interval_label = ctk.CTkLabel(
             self,
@@ -595,7 +599,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             padx=10,
             pady=20,
         )
-        self.interval_label.pack(side=tk.TOP, pady=(10, 10))
+        self.interval_label.pack(side=ctk.TOP, pady=(10, 10))
 
         # self.test_button = ctk.CTkButton(
         #     self,
@@ -616,9 +620,9 @@ class MainFrameDatabase(ctk.CTkFrame):
 
     def toggle_collection(self):
         self.col_active = not self.col_active
-        self.collection_checkbox.configure(state=tk.NORMAL)
+        self.collection_checkbox.configure(state=ctk.NORMAL)
         self.collection_checkbox.toggle()
-        self.collection_checkbox.configure(state=tk.DISABLED)
+        self.collection_checkbox.configure(state=ctk.DISABLED)
 
     def change_interval(self, interval: str):
         self.col_interval = interval
@@ -655,7 +659,7 @@ class SideBarDatabase(ctk.CTkFrame):
         self.logo_label = ctk.CTkLabel(
             self, text="Database", font=ctk.CTkFont(size=20, weight="bold")
         )
-        self.logo_label.pack(side=tk.TOP, padx=10, pady=(20, 0))
+        self.logo_label.pack(side=ctk.TOP, padx=10, pady=(20, 0))
 
         # Button frame for start/stop data collection
         button_frame = ctk.CTkFrame(self, height=80, fg_color="transparent")
@@ -673,7 +677,7 @@ class SideBarDatabase(ctk.CTkFrame):
             in_=button_frame,
             relx=0.5,
             rely=0.5,
-            anchor=tk.CENTER,
+            anchor=ctk.CENTER,
         )
         # Stop data collection Button
         self.stop_button = ctk.CTkButton(
@@ -688,7 +692,7 @@ class SideBarDatabase(ctk.CTkFrame):
             in_=button_frame,
             relx=0.5,
             rely=0.5,
-            anchor=tk.CENTER,
+            anchor=ctk.CENTER,
         )
         # Start data collection button on top
         self.start_button.lift()
@@ -697,7 +701,7 @@ class SideBarDatabase(ctk.CTkFrame):
         self.interval_label = ctk.CTkLabel(
             self, text="Data Collection Interval:", anchor="w"
         )
-        self.interval_label.pack(side=tk.TOP, padx=10, pady=(10, 0))
+        self.interval_label.pack(side=ctk.TOP, padx=10, pady=(10, 0))
         # Interval dropdown menu
         self.interval_option_menu = ctk.CTkOptionMenu(
             self,
@@ -706,7 +710,7 @@ class SideBarDatabase(ctk.CTkFrame):
             variable=ctk.StringVar(value=DEFAULT_COL_INTERVAL),
             width=SIDEBAR_BUTTON_WIDTH
         )
-        self.interval_option_menu.pack(side=tk.TOP, padx=10, pady=(10, 10))
+        self.interval_option_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
     def write_to_textbox(self, text: str):
         self.main_frame.write_to_textbox(text)
@@ -791,12 +795,32 @@ class CustomDateEntry(DateEntry):
             dates = []
         super().__init__(master, **kw)
         self.dates = dates
+        self.configure_size()
+        self.bind("<Configure>", self.update_on_resize)  # Bind to the Configure event
+
+    def configure_size(self):
+        # Calculate the font size based on the width of the widget
+        width = self.winfo_width()
+        font_size = int(width/DATE_ENTRY_FONT_SMALLNESS)
+        cal_font_size = int(width/CALENDAR_FONT_SMALLNESS)
+        
+        # Create a font object with the calculated size
+        self.custom_font = ctk.CTkFont(family="Helvetica", size=font_size, weight="bold")
+        self.custom_cal_font = ctk.CTkFont(family="Helvetica", size=cal_font_size, weight="bold")
+        
+        # Update the font configuration for the widget
+        self.configure(font=self.custom_font)
+        self._calendar.configure(font=self.custom_cal_font) 
 
     def highlight_dates(self):
         for date in self.dates:
             dt = datetime.datetime.strptime(date, "%d-%m-%Y")
             self._calendar.calevent_create(dt, date, date)
             self._calendar.tag_config(date, background="#19a84c", foreground="white")
+
+    def update_on_resize(self, event):
+        self.configure_size()
+
 
 
 class Menu(CTkMenuBar):
