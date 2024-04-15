@@ -15,8 +15,8 @@ import time
 import threading
 
 import database
-import retrive_data
-from retrive_data import Location
+import retrieve_data
+from retrieve_data import Location
 import utils
 
 
@@ -746,7 +746,7 @@ class SideBarDatabase(ctk.CTkFrame):
             while thread_id == self.thread_id:
                 start_time = time.perf_counter()
 
-                data = retrive_data.get_data()
+                data = retrieve_data.get_data()
                 location: Location
                 for location in data:
                     added = db_handle.add_data(
