@@ -3,6 +3,57 @@ import pytz
 import time
 import calendar
 from typing import List
+import database
+
+
+def copy_db(old_db_path: str, new_db_path: str) -> bool:
+    """
+    Meant for 1 time use. Timezone errors in epochs. (epochs are -2h or -3h behind -> +2h/+3h)
+
+    Raises: sqlite3.IntegrityError if adding a value to locations/visitor_activity
+        failed due to locations/visitor_activity already having the primary key value
+        that was attempted to add.
+    """
+    db_handle = None
+
+    try:
+        db_handle = database.SQLiteDBManager(dbpath=old_db_path)
+        all_locations = db_handle.get_all("locations")
+        all_activity = db_handle.get_all("visitor_activity")
+    finally:
+        if db_handle:
+            db_handle.__del__()
+
+    all_activity = edit_epochs_bad(all_activity)
+
+    db_handle = None
+
+    try:
+        db_handle = database.SQLiteDBManager(dbpath=new_db_path)
+        db_handle.add_many_location(all_locations)
+        db_handle.add_many_visitor(all_activity)
+    except Exception as e:
+        print(e)
+    finally:
+        if db_handle:
+            db_handle.__del__()
+
+    return True
+
+
+def edit_epochs_bad(activity: List[tuple[int, int, int]]) -> List[tuple[int, int, int]]:
+    epoch_2 = 2 * 60 * 60
+    epoch_3 = 3 * 60 * 60
+
+    edited_activity = []
+
+    for tuple_ in activity:
+        if tuple_[1] <= 1711839599:  # a second before timezone changes from +2h to +3h.
+            edited_tuple = (tuple_[0], tuple_[1] + epoch_2, tuple_[2])
+        else:
+            edited_tuple = (tuple_[0], tuple_[1] + epoch_3, tuple_[2])
+        edited_activity.append(edited_tuple)
+    return edited_activity
 
 
 def next_weekday(start: int, weekday: str) -> int:
@@ -70,8 +121,6 @@ def convert_for_day_graph(data: List[tuple[int, int]]) -> tuple[List[int], List[
     return x_values, y_values
 
 
-
-
 def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     """
     Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
@@ -115,9 +164,6 @@ def get_finnish_day(epoch_timestamp) -> str | None:
         return _get_localized_datetime(epoch_timestamp).strftime("%A")
     except IOError:
         return None
-
-
-
 
 
 def time_to_epoch(date: str, tzinfo=pytz.timezone("Europe/Helsinki")) -> int:
@@ -167,7 +213,7 @@ def gmt_to_epoch(date: str) -> int:
 def _get_localized_datetime(
     epoch_timestamp: int, tzinfo=pytz.timezone("Europe/Helsinki")
 ) -> datetime:
-    finnish_datetime = datetime.fromtimestamp(epoch_timestamp, tzinfo) 
+    finnish_datetime = datetime.fromtimestamp(epoch_timestamp, tzinfo)
 
     return finnish_datetime
 
@@ -178,7 +224,6 @@ def main():
     date = "Mon, 15 Apr 2024 18:04:29 GMT"
 
     time_object2 = time.strptime(date, "%a, %d %b %Y %H:%M:%S %Z")
-
 
     epoch2 = calendar.timegm(time_object2)
     epoch3 = gmt_to_epoch(date)
@@ -194,7 +239,6 @@ def main():
     my_fin_hour = get_finnish_hour(fin_epoch)
     my_fin_time = get_finnish_time(fin_epoch)
 
-
     print("Date:          ", fin_date)
     print("Fin epoch:     ", fin_epoch)
     print("Actual epoch:  ", 1713204269)
@@ -205,12 +249,6 @@ def main():
 
     test = _get_localized_datetime(fin_epoch)
     print(test)
-
-    
-
-
-
-
 
 
 if __name__ == "__main__":
