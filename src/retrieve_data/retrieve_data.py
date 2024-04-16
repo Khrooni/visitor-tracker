@@ -97,7 +97,7 @@ def get_data_periodically(duration: int, interval: int) -> List[Location]:
     return location_data
 
 
-def get_data():
+def get_data() -> List[Location]:
     location_data: List[Location] = []
     hmtl = _get_html()
     locations = _parse_locations_data(hmtl)
