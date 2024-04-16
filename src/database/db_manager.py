@@ -5,7 +5,7 @@ import re
 import math
 
 from .helpers import are_ints, get_unique_epochs, calculate_days
-
+from retrieve_data import Location
 
 import time
 
@@ -16,19 +16,22 @@ DB_FILE_PATH = DB_DIRECTORY + DB_NAME
 
 
 class SQLiteDBManager:
-    def __init__(self, dbname=DB_FILE_PATH):
-        self.dbname = dbname
-        self.conn = sqlite3.connect(dbname)
-        # self.cur = self.conn.cursor()
+    def __init__(self, dbpath=DB_FILE_PATH):
+        self.dbpath = dbpath
+        self.conn = sqlite3.connect(dbpath)
 
-        sql_create_locations_table: str = """CREATE TABLE IF NOT EXISTS locations(
-                        location_id INTEGER PRIMARY KEY NOT NULL,
-                        location_name TEXT NOT NULL)"""
+        sql_create_visitor_activity_table = """CREATE TABLE IF NOT EXISTS visitor_activity(
+            location_id INTEGER NOT NULL,
+            epoch_timestamp INTEGER NOT NULL,
+            location_visitors INTEGER NOT NULL,
+            PRIMARY KEY (location_id, epoch_timestamp)
+            )"""
 
-        sql_create_visitor_activity_table: str = """CREATE TABLE IF NOT EXISTS visitor_activity(
-                        location_id INTEGER NOT NULL,
-                        epoch_timestamp INTEGER NOT NULL UNIQUE,
-                        location_visitors INTEGER)"""
+        sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
+            location_id INTEGER PRIMARY KEY NOT NULL,
+            location_name TEXT NOT NULL)"""
+
+
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(sql_create_locations_table)
@@ -94,6 +97,27 @@ class SQLiteDBManager:
             return False
 
         return True
+
+    def add_many_visitor(self, visitor_activity: List[tuple[int, int, int]]):
+
+        pstmt_add_visitors = "INSERT INTO visitor_activity VALUES (?, ?, ?)"
+
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.executemany(pstmt_add_visitors, visitor_activity)
+            self.conn.commit()
+
+
+    def add_many_location(self, locations: List[tuple[int, str]]):
+
+        pstmt_add_locations = "INSERT INTO locations VALUES (?, ?)"
+
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.executemany(pstmt_add_locations, locations)
+            self.conn.commit()
+
+        
 
     def _table_has(self, location_id: int) -> bool:
         """
@@ -224,8 +248,12 @@ class SQLiteDBManager:
         return
 
     def get_day(self, location_id: int, weekday: str) -> tuple[int, int, int]:
-        pstmt_first: str = "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?)"
-        pstmt_last: str = "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?) ORDER BY epoch_timestamp DESC"
+        pstmt_first: str = (
+            "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?)"
+        )
+        pstmt_last: str = (
+            "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?) ORDER BY epoch_timestamp DESC"
+        )
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_first, (location_id,))
@@ -233,7 +261,6 @@ class SQLiteDBManager:
             cursor.execute(pstmt_last, (location_id,))
             last_timestamp = cursor.fetchone()[0]
 
-        
         amount = calculate_days(first_timestamp, last_timestamp, weekday)
 
         print(first_timestamp)
@@ -285,7 +312,7 @@ class SQLiteDBManager:
         if not self._table_exists(table_name):
             return all_list
 
-        stmt_get_all = f"SELECT * FROM {table_name}"
+        stmt_get_all = f"SELECT * FROM {table_name} ORDER BY rowid"
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(stmt_get_all)
