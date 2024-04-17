@@ -56,39 +56,84 @@ def edit_epochs_bad(activity: List[tuple[int, int, int]]) -> List[tuple[int, int
     return edited_activity
 
 
-def next_weekday(start: int, weekday: str) -> int:
+def lower_limit(start: int, weekday: str) -> int:
+    """
+    Finds the next closest day (can be the given start day) to given start time
+    that matches with the given target weekday.
+
+    Parameters:
+    - start (int): Starting time for search as epoch timestamp in seconds.
+    - weekday (str): Target weekday abbreviation ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
+
+    Returns:
+    - int: Closest target weekday as epoch timestamp in seconds. Time of the day will always be set to 00:00:00.
+
+    """
     weekdays = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-    fin_datetime = _get_localized_datetime(start)
+    fin_datetime = get_localized_datetime(start)
 
     current_weekday = fin_datetime.weekday()
-
     target_weekday = weekdays[weekday.lower()]
 
-    # days_to_add = (target_weekday - current_weekday) % 7
-
-    # Calculate days to add to reach the next Monday
     days_to_add = (target_weekday - current_weekday) % 7
 
     # Current weekday is the target weekday
     if days_to_add == 0:
-        return start
+        # Return current day but time set to 00:00:00.
+        return fin_datetime.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
-    # Calculate the next Monday
-    next_monday_dt = fin_datetime + timedelta(days=days_to_add)
+    # Calculate the weekday
+    lower_limit = fin_datetime + timedelta(days=days_to_add)
 
     # Set time to 00:00:00
-    next_monday_dt = next_monday_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-    print(next_monday_dt.strftime("%d-%m-%Y %H:%M:%S %Z"))
-    print(int(next_monday_dt.timestamp()))
+    lower_limit = lower_limit.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    utc = datetime_to_utc(next_monday_dt)
-    print(utc.strftime("%d-%m-%Y %H:%M:%S %Z"))
-
-    return int(utc.timestamp())
+    return int(lower_limit.timestamp())
 
 
-def previous_weekday(start: int, weekday: str):
-    pass
+def upper_limit(end: int, weekday: str) -> int:
+    """
+    Finds the previous closest day (+1 day) to given end time
+    that matches with the given target weekday.
+
+    Parameters:
+    - end (int): Ending time for search as epoch timestamp in seconds.
+    - weekday (str): Target weekday abbreviation ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
+
+    Returns:
+    - int: Closest target weekday(+1 day) as epoch timestamp in seconds. Time of the day will always be set to 00:00:00.
+        Example: If target weekday is Tuesday returns previous Wednesday at 00:00:00. (mon -> tue, tue -> wed, ...)
+    """
+
+    weekdays = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+
+
+    fin_datetime = get_localized_datetime(end)
+
+    current_weekday = fin_datetime.weekday()
+    target_weekday = weekdays[weekday.lower()]
+
+    days_to_subtract = (current_weekday - target_weekday) % 7
+
+    # Current weekday is the target weekday
+    if days_to_subtract == 0:
+        # +1 day
+        fin_datetime = fin_datetime  + timedelta(days=1)
+        # Return the day, time set to 00:00:00.
+        return int(fin_datetime.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+    # Calculate the datetime of the previous occurrence of the target weekday
+    upper_limit_dt = fin_datetime - timedelta(days=days_to_subtract)
+
+    # Set time to 00:00:00
+    upper_limit_dt = upper_limit_dt.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    # +1 day
+    upper_limit_dt = upper_limit_dt + timedelta(days=1)
+
+    return int(upper_limit_dt.timestamp())
 
 
 def datetime_to_utc(datetime_to: datetime) -> datetime:
@@ -129,7 +174,7 @@ def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     Returns None if epoch timestamp was a value that couldn't be converted.
     """
     try:
-        return _get_localized_datetime(epoch_timestamp).strftime("%d-%m-%Y %H:%M:%S %Z")
+        return get_localized_datetime(epoch_timestamp).strftime("%d-%m-%Y %H:%M:%S %Z")
     except IOError:
         return None
 
@@ -137,7 +182,7 @@ def get_formatted_finnish_time(epoch_timestamp) -> str | None:
 def get_finnish_date(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
-        return _get_localized_datetime(epoch_timestamp).strftime("%d-%m-%Y")
+        return get_localized_datetime(epoch_timestamp).strftime("%d-%m-%Y")
     except IOError:
         return None
 
@@ -145,7 +190,7 @@ def get_finnish_date(epoch_timestamp) -> str | None:
 def get_finnish_time(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
-        return _get_localized_datetime(epoch_timestamp).strftime("%H:%M:%S")
+        return get_localized_datetime(epoch_timestamp).strftime("%H:%M:%S")
     except IOError:
         return None
 
@@ -153,7 +198,7 @@ def get_finnish_time(epoch_timestamp) -> str | None:
 def get_finnish_hour(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
-        return _get_localized_datetime(epoch_timestamp).strftime("%H")
+        return get_localized_datetime(epoch_timestamp).strftime("%H")
     except IOError:
         return None
 
@@ -161,7 +206,7 @@ def get_finnish_hour(epoch_timestamp) -> str | None:
 def get_finnish_day(epoch_timestamp) -> str | None:
     """Returns None if epoch timestamp was a value that couldn't be converted."""
     try:
-        return _get_localized_datetime(epoch_timestamp).strftime("%A")
+        return get_localized_datetime(epoch_timestamp).strftime("%A")
     except IOError:
         return None
 
@@ -210,12 +255,15 @@ def gmt_to_epoch(date: str) -> int:
     return calendar.timegm(time.strptime(date, "%a, %d %b %Y %H:%M:%S %Z"))
 
 
-def _get_localized_datetime(
+def get_localized_datetime(
     epoch_timestamp: int, tzinfo=pytz.timezone("Europe/Helsinki")
 ) -> datetime:
     finnish_datetime = datetime.fromtimestamp(epoch_timestamp, tzinfo)
 
     return finnish_datetime
+
+def datetime_to_epoch(datetime_to: datetime) -> int:
+    return int(datetime_to.timestamp())
 
 
 def main():
@@ -247,7 +295,7 @@ def main():
     print("Fin hour:      ", my_fin_hour)
     print("Fin time:      ", my_fin_time)
 
-    test = _get_localized_datetime(fin_epoch)
+    test = get_localized_datetime(fin_epoch)
     print(test)
 
 
