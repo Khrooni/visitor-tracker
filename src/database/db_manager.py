@@ -4,7 +4,7 @@ from typing import List
 import re
 import math
 
-from .helpers import are_ints, get_unique_epochs, calculate_days
+from .helpers import are_ints, get_unique_epochs, calculate_days, get_timestamps, calculate_averages
 from retrieve_data import Location
 
 import time
@@ -13,6 +13,14 @@ import time
 DB_NAME = "visitorTrackingDB.db"
 DB_DIRECTORY = "src/database/"
 DB_FILE_PATH = DB_DIRECTORY + DB_NAME
+
+MODES = {
+    "avg": "AVG",
+    "max": "MAX",
+    "min": "MIN",
+    "sum": "SUM",
+    "count": "COUNT",
+}
 
 
 class SQLiteDBManager:
@@ -30,8 +38,6 @@ class SQLiteDBManager:
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
             location_id INTEGER PRIMARY KEY NOT NULL,
             location_name TEXT NOT NULL)"""
-
-
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(sql_create_locations_table)
@@ -102,22 +108,17 @@ class SQLiteDBManager:
 
         pstmt_add_visitors = "INSERT INTO visitor_activity VALUES (?, ?, ?)"
 
-
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.executemany(pstmt_add_visitors, visitor_activity)
             self.conn.commit()
-
 
     def add_many_location(self, locations: List[tuple[int, str]]):
 
         pstmt_add_locations = "INSERT INTO locations VALUES (?, ?)"
 
-
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.executemany(pstmt_add_locations, locations)
             self.conn.commit()
-
-        
 
     def _table_has(self, location_id: int) -> bool:
         """
@@ -155,7 +156,7 @@ class SQLiteDBManager:
 
         pstmt_get_between: str = """SELECT epoch_timestamp, location_visitors 
             FROM visitor_activity
-            WHERE (location_id = ?) AND (epoch_timestamp >= ? AND epoch_timestamp < ?)
+            WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
             ORDER BY epoch_timestamp
             """
 
@@ -175,7 +176,7 @@ class SQLiteDBManager:
             location_id (int): The ID of the location..
             start (int): The start time (inclusive) of the time range in epoch format.
             end (int): The end time (exclusive) of the time range in epoch format.
-            mode (str): avg, max or min.
+            mode (str): avg, max, min or sum.
 
         Returns:
             List[Tuple]: A list of tuples representing the retrieved activity records.
@@ -188,11 +189,9 @@ class SQLiteDBManager:
         if not are_ints(location_id, start, end) or (start < 0 or end < 0):
             return None
 
-        modes = {"avg": "AVG", "max": "MAX", "min": "MIN"}
-
-        pstmt: str = f"""SELECT {modes.get(mode.lower())}(location_visitors) 
+        pstmt: str = f"""SELECT {MODES.get(mode.lower())}(location_visitors) 
             FROM visitor_activity
-            WHERE (location_id = ?) AND (epoch_timestamp >= ? AND epoch_timestamp < ?)
+            WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
             """
 
         with contextlib.closing(self.conn.cursor()) as cursor:
@@ -223,10 +222,10 @@ class SQLiteDBManager:
         """
         activity_list: List[tuple] = []
 
-        if not are_ints(location_id, start, end, interval) or (start < 0 or end < 0):
+        if not are_ints(location_id, start, end, interval) or (
+            start < 0 or end < 0 or interval < 0
+        ):
             return activity_list
-
-        modes = {"avg": "AVG", "max": "MAX", "min": "MIN"}
 
         duration = end - start
         loops = math.floor(duration / interval)
@@ -236,18 +235,120 @@ class SQLiteDBManager:
                 location_id,
                 (start + i * interval),
                 (start + (i + 1) * interval),
-                modes.get(mode.lower()),
+                MODES.get(mode.lower()),
             )
             activity_list.append(activity)
 
         return activity_list
 
-    def get_average_visitors(self, location_id: int, weekday: str) -> List[tuple]:
+    def get_average_visitors(self, location_id: int, weekday: str) -> tuple[list[int], list[int]]:
         weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
-        return
+        sums = []
+        counts = []
+        times = []
 
-    def get_day(self, location_id: int, weekday: str) -> tuple[int, int, int]:
+        interval = 60 * 60
+
+        all_days = self._get_days(location_id, weekday)
+
+        for day in all_days:
+            start = day[0]
+            end = day[1]
+
+            if self._has_data(location_id, start, end):
+                sum_list = self.get_data_by_mode(
+                    location_id, start, end, "sum", interval
+                )
+                count_list = self.get_data_by_mode(
+                    location_id, start, end, "count", interval
+                )
+
+                if not sums or not times:
+                    times = get_timestamps(start, end, interval)
+
+                    for i, count in enumerate(count_list):
+                        counts.append(count)
+
+                        visitor_sum = sum_list[i]
+
+                        if not are_ints(visitor_sum):
+                            sums.append(0)
+                        else:
+                            sums.append(visitor_sum)
+
+                else:
+                    for i, count in enumerate(count_list):
+                        counts[i] += count
+
+                        visitor_sum = sum_list[i]
+
+                        if are_ints(visitor_sum):
+                            sums[i] += visitor_sum
+                        
+
+            ikuinen = 0
+
+        averages = calculate_averages(sums, counts)
+
+        return averages, times
+
+    def get_single_by_mode(
+        self, location_id: int, start: int, end: int, mode: str
+    ) -> int | None:
+
+        if not are_ints(location_id, start, end):
+            raise TypeError(
+                "Arguments 'location_id', 'start', and 'end' must be integers."
+            )
+        if start < 0 or end < 0:
+            raise ValueError("Start and end values must be non-negative.")
+
+        pstmt: str = f"""SELECT {MODES.get(mode.lower())}(location_visitors) 
+            FROM visitor_activity
+            WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
+            """
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt, (location_id, start, end))
+            result = cursor.fetchone()
+
+        return result[0]
+
+    def get_data_by_mode(
+        self, location_id: int, start: int, end: int, mode: str, interval: int
+    ) -> List[int]:
+
+        activity_list: List[int] = []
+
+        if not are_ints(location_id, start, end):
+            raise TypeError(
+                "Arguments 'location_id', 'start', and 'end' must be integers."
+            )
+        if start < 0 or end < 0 or interval < 0:
+            raise ValueError("Start and end values must be non-negative.")
+
+        duration = end - start
+        loops = math.floor(duration / interval)
+
+        for i in range(loops):
+            start_time = start + i * interval
+            activity = self.get_single_by_mode(
+                location_id,
+                start_time,
+                (start + (i + 1) * interval),
+                MODES.get(mode.lower()),
+            )
+            activity_list.append(activity)
+
+        return activity_list
+
+    def _get_days(self, location_id: int, weekday: str) -> List[tuple[int, int]]:
+        """
+        Calculates upper (start of first target weekday) and lower limit (end of last tar)
+
+        Returns: (lower_limit, upper_limit)
+        """
         pstmt_first: str = (
             "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?)"
         )
@@ -257,15 +358,40 @@ class SQLiteDBManager:
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(pstmt_first, (location_id,))
-            first_timestamp = cursor.fetchone()[0]
+            first_timestamp = cursor.fetchone()
             cursor.execute(pstmt_last, (location_id,))
-            last_timestamp = cursor.fetchone()[0]
+            last_timestamp = cursor.fetchone()
 
-        amount = calculate_days(first_timestamp, last_timestamp, weekday)
+        if first_timestamp and last_timestamp:
+            first_timestamp = first_timestamp[0]
+            last_timestamp = last_timestamp[0]
+        else: 
+            return []
 
-        print(first_timestamp)
-        print(last_timestamp)
-        return first_timestamp, last_timestamp, amount
+
+        return calculate_days(first_timestamp, last_timestamp, weekday)
+
+    def _has_data(self, location_id: int, start_epoch: int, end_epoch: int) -> bool:
+        """
+        Checks if visitor_activity table has data, with given location id, between
+        given start (inclusive) and end (exclusive) epochs.
+
+        Returns: True if there is any data, False otherwise.
+        """
+
+        pstmt = """SELECT rowid
+            FROM visitor_activity
+            WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
+            """
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt, (location_id, start_epoch, end_epoch))
+            result = cursor.fetchone()
+
+        if result is not None:
+            return True
+        else:
+            return False
 
     def get_locations(self) -> List[tuple[int, str]]:
         return self.get_all("locations")
