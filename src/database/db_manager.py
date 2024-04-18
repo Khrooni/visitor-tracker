@@ -162,84 +162,24 @@ class SQLiteDBManager:
 
         return activity_list
 
-    def get_mode_activity_between(
-        self, location_id: int, start: int, end: int, mode: str
-    ) -> tuple | None:
-        """
-        Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
-
-        Parameters:
-            location_id (int): The ID of the location..
-            start (int): The start time (inclusive) of the time range in epoch format.
-            end (int): The end time (exclusive) of the time range in epoch format.
-            mode (str): avg, max, min or sum.
-
-        Returns:
-            List[Tuple]: A list of tuples representing the retrieved activity records.
-                        Each tuple contains two elements: epoch timestamp and number of location visitors.
-
-        If either the 'start' or 'end' parameters are negative or if any of the int parameters are not of type 'int',
-        None is returned.
-        """
-
-        if not are_ints(location_id, start, end) or (start < 0 or end < 0):
-            return None
-
-        pstmt: str = f"""SELECT {MODES.get(mode.lower())}(location_visitors) 
-            FROM visitor_activity
-            WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
-            """
-
-        with contextlib.closing(self.conn.cursor()) as cursor:
-            cursor.execute(pstmt, (location_id, start, end))
-            result = cursor.fetchone()
-
-        return (start, result[0])
-
-    def get_mode_activity_between_peridiocally(
-        self, location_id: int, start: int, end: int, mode: str, interval: int
-    ) -> List[tuple]:
-        """
-        Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
-
-        Parameters:
-            location_id (int): The ID of the location..
-            start (int): The start time (inclusive) of the time range in epoch format.
-            end (int): The end time (exclusive) of the time range in epoch format.
-            interval (int): The duration of each interval in seconds. Average visitors will be calculated
-                                within each interval.
-
-        Returns:
-            List[Tuple]: A list of tuples representing the retrieved activity records.
-                        Each tuple contains two elements: epoch timestamp (interval start time) and average visitors during inteval.
-
-        If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
-        an empty list is returned.
-        """
-        activity_list: List[tuple] = []
-
-        if not are_ints(location_id, start, end, interval) or (
-            start < 0 or end < 0 or interval < 0
-        ):
-            return activity_list
-
-        duration = end - start
-        loops = math.floor(duration / interval)
-
-        for i in range(loops):
-            activity = self.get_mode_activity_between(
-                location_id,
-                (start + i * interval),
-                (start + (i + 1) * interval),
-                MODES.get(mode.lower()),
-            )
-            activity_list.append(activity)
-
-        return activity_list
-
     def get_average_visitors(
         self, location_id: int, weekday: str
     ) -> tuple[list[int], list[int]]:
+        """
+        Calculates the average number of visitors and corresponding timestamps for a given location and weekday.
+        Averages are calculated for every hour of the day (00, 01, ..., 23)
+
+        Parameters:
+        - location_id (int)
+        - weekday (str): The weekday for which to calculate average visitors
+            - e.g., ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
+
+        Returns:
+        - tuple[list[int], list[int]]: A tuple containing:
+            - A list of average visitor counts for every hour.
+            - A list of corresponding epoch timestamps for every hour.
+        """
+
         epochs = []
 
         total_sums = []
@@ -290,6 +230,52 @@ class SQLiteDBManager:
 
         return averages, epochs
 
+    def get_data_by_mode(
+        self, location_id: int, start: int, end: int, mode: str, interval: int
+    ) -> list[int]:
+        """
+        Retrieve data at specified intervals between given start and end times,
+        following the given mode.
+
+        Parameters:
+        - location_id (int): Identifier for the location to retrieve data from.
+        - start (int): Start time in epoch format.
+        - end (int): End time in epoch format.
+        - mode (str): Data mode to follow for each interval
+            - e.g., ("avg", "max", "min", "sum" or "count").
+        - interval (int): Time interval in seconds for data retrieval.
+
+        Returns:
+        - list[int]: A list of data points corresponding to the given mode for each interval.
+
+        Raises:
+        - TypeError: If 'location_id', 'start', 'end' or 'interval' are not integers.
+        - ValueError: If 'start', 'end', or 'interval' are negative.
+        """
+        activity_list: List[int] = []
+
+        if not are_ints(location_id, start, end, interval):
+            raise TypeError(
+                "Arguments 'location_id', 'start', and 'end' must be integers."
+            )
+        if start < 0 or end < 0 or interval < 0:
+            raise ValueError("Start and end values must be non-negative.")
+
+        duration = end - start
+        loops = math.floor(duration / interval)
+
+        for i in range(loops):
+            start_time = start + i * interval
+            activity = self.get_single_by_mode(
+                location_id,
+                start_time,
+                (start + (i + 1) * interval),
+                MODES.get(mode.lower()),
+            )
+            activity_list.append(activity)
+
+        return activity_list
+
     def get_single_by_mode(
         self, location_id: int, start: int, end: int, mode: str
     ) -> int | None:
@@ -311,34 +297,6 @@ class SQLiteDBManager:
             result = cursor.fetchone()
 
         return result[0]
-
-    def get_data_by_mode(
-        self, location_id: int, start: int, end: int, mode: str, interval: int
-    ) -> List[int]:
-
-        activity_list: List[int] = []
-
-        if not are_ints(location_id, start, end):
-            raise TypeError(
-                "Arguments 'location_id', 'start', and 'end' must be integers."
-            )
-        if start < 0 or end < 0 or interval < 0:
-            raise ValueError("Start and end values must be non-negative.")
-
-        duration = end - start
-        loops = math.floor(duration / interval)
-
-        for i in range(loops):
-            start_time = start + i * interval
-            activity = self.get_single_by_mode(
-                location_id,
-                start_time,
-                (start + (i + 1) * interval),
-                MODES.get(mode.lower()),
-            )
-            activity_list.append(activity)
-
-        return activity_list
 
     def _get_days(self, location_id: int, weekday: str) -> List[tuple[int, int]]:
         """
