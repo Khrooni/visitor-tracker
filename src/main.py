@@ -15,6 +15,7 @@ import time
 import threading
 
 import database
+import database.helpers
 import retrieve_data
 from retrieve_data import Location
 import utils
@@ -343,23 +344,36 @@ class Graph(ctk.CTkFrame):
         self.canvas.draw()
 
     def _get_graph_data(self):
-        search_start = utils.time_to_epoch(f"{self.graph_date} 00:00:00")
+        search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
         search_end = search_start + 24 * 60 * 60  # +24 hours
 
         try:
             db_handle = database.SQLiteDBManager()
 
             # location_data = db_handle.get_locations()
-            data = db_handle.get_mode_activity_between_peridiocally(
+            # data = db_handle.get_mode_activity_between_peridiocally(
+            #     1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
+            # )
+            visitors = db_handle.get_data_by_mode(
                 1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
             )
+            timestamps = database.helpers.calculate_timestamps(search_start, search_end, 60*60)
+            # data = list(zip(timestamps, visitors))
+
         finally:
             db_handle.__del__()
 
-        self.x_values, self.y_values = utils.convert_for_day_graph(data)
+        # self.x_values, self.y_values = utils.convert_for_day_graph(data)
+
+        self.x_values, self.y_values = utils.convert_for_day_graph(timestamps, visitors)
+        
+        # self.x_values = utils.epochs_to_format(timestamps, "hour")
+        # self.y_values = utils.nones_to_zeros(visitors)
+        
 
         # Korjaa! Lisää check, että oikean tyyppistä dataa.
-        for time_stamp in data[0]:
+        # for time_stamp in data[0]:
+        for time_stamp in timestamps:
             if time_stamp is not None:
                 found_date = time_stamp
                 break
