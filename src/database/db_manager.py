@@ -4,7 +4,13 @@ from typing import List
 import re
 import math
 
-from .helpers import are_ints, get_unique_epochs, calculate_days, get_timestamps, calculate_averages
+from .helpers import (
+    are_ints,
+    get_unique_epochs,
+    calculate_days,
+    calculate_timestamps,
+    calculate_averages,
+)
 from retrieve_data import Location
 
 import time
@@ -62,7 +68,8 @@ class SQLiteDBManager:
     ) -> bool:
         try:
             self.add_location(location_id, location_name)
-        except sqlite3.DatabaseError:
+        except sqlite3.DatabaseError as e:
+            print(e)
             return False
 
         success = self.add_visitor_activity(
@@ -119,17 +126,6 @@ class SQLiteDBManager:
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.executemany(pstmt_add_locations, locations)
             self.conn.commit()
-
-    def _table_has(self, location_id: int) -> bool:
-        """
-        Checks if a location with the given location_id exists in the 'locations' table.
-        """
-        pstmt_check_table: str = "SELECT * FROM locations WHERE location_id = ?"
-
-        with contextlib.closing(self.conn.cursor()) as cursor:
-            cursor.execute(pstmt_check_table, (location_id,))
-            result = cursor.fetchone()
-            return result is not None
 
     def get_activity_between(
         self, location_id: int, start: int, end: int
@@ -241,12 +237,13 @@ class SQLiteDBManager:
 
         return activity_list
 
-    def get_average_visitors(self, location_id: int, weekday: str) -> tuple[list[int], list[int]]:
-        weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+    def get_average_visitors(
+        self, location_id: int, weekday: str
+    ) -> tuple[list[int], list[int]]:
+        epochs = []
 
-        sums = []
-        counts = []
-        times = []
+        total_sums = []
+        total_counts = []
 
         interval = 60 * 60
 
@@ -256,42 +253,42 @@ class SQLiteDBManager:
             start = day[0]
             end = day[1]
 
-            if self._has_data(location_id, start, end):
-                sum_list = self.get_data_by_mode(
-                    location_id, start, end, "sum", interval
-                )
-                count_list = self.get_data_by_mode(
-                    location_id, start, end, "count", interval
-                )
+            if not self._has_data(location_id, start, end):
+                continue
 
-                if not sums or not times:
-                    times = get_timestamps(start, end, interval)
+            new_sums = self.get_data_by_mode(location_id, start, end, "sum", interval)
+            new_counts = self.get_data_by_mode(
+                location_id,
+                start,
+                end,
+                "count",
+                interval,
+            )
 
-                    for i, count in enumerate(count_list):
-                        counts.append(count)
+            if not total_sums or not epochs:
+                epochs = calculate_timestamps(start, end, interval)
 
-                        visitor_sum = sum_list[i]
+                total_counts.extend(new_counts)
+                total_sums = [
+                    0 if not are_ints(visitor_sum) else visitor_sum
+                    for visitor_sum in new_sums
+                ]
+            else:
+                # total counts += new counts
+                total_counts = [
+                    total_count + new_count
+                    for total_count, new_count in zip(total_counts, new_counts)
+                ]
 
-                        if not are_ints(visitor_sum):
-                            sums.append(0)
-                        else:
-                            sums.append(visitor_sum)
+                # total sums += visitor sum (if visitor sum is a integer)
+                total_sums = [
+                    current_sum + visitor_sum if are_ints(visitor_sum) else current_sum
+                    for current_sum, visitor_sum in zip(total_sums, new_sums)
+                ]
 
-                else:
-                    for i, count in enumerate(count_list):
-                        counts[i] += count
+        averages = calculate_averages(total_sums, total_counts)
 
-                        visitor_sum = sum_list[i]
-
-                        if are_ints(visitor_sum):
-                            sums[i] += visitor_sum
-                        
-
-            ikuinen = 0
-
-        averages = calculate_averages(sums, counts)
-
-        return averages, times
+        return averages, epochs
 
     def get_single_by_mode(
         self, location_id: int, start: int, end: int, mode: str
@@ -347,7 +344,6 @@ class SQLiteDBManager:
         """
         Calculates upper (start of first target weekday) and lower limit (end of last tar)
 
-        Returns: (lower_limit, upper_limit)
         """
         pstmt_first: str = (
             "SELECT epoch_timestamp FROM visitor_activity WHERE (location_id = ?)"
@@ -365,9 +361,8 @@ class SQLiteDBManager:
         if first_timestamp and last_timestamp:
             first_timestamp = first_timestamp[0]
             last_timestamp = last_timestamp[0]
-        else: 
+        else:
             return []
-
 
         return calculate_days(first_timestamp, last_timestamp, weekday)
 
@@ -445,6 +440,17 @@ class SQLiteDBManager:
             all_list = cursor.fetchall()
 
         return all_list
+
+    def _table_has(self, location_id: int) -> bool:
+        """
+        Checks if a location with the given location_id exists in the 'locations' table.
+        """
+        pstmt_check_table: str = "SELECT * FROM locations WHERE location_id = ?"
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt_check_table, (location_id,))
+            result = cursor.fetchone()
+            return result is not None
 
     def _table_exists(self, table_name: str) -> bool:
         """
