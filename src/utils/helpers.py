@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 import pytz
 import time
 import calendar
-from typing import List, Callable, Any
-import database
+from typing import Callable, Any
 
 
 def convert_for_day_graph(
@@ -147,6 +146,38 @@ def get_localized_datetime(
     finnish_datetime = datetime.fromtimestamp(epoch_timestamp, tzinfo)
 
     return finnish_datetime
+
+
+def next_time(
+    epoch_timestamp: int, tzinfo=pytz.timezone("Europe/Helsinki"), days=0, weeks=0
+) -> int:
+    """
+    Adds days/weeks to given epoch. Takes into account daylight saving time.
+
+    Example: 31.3.2024 00:00:00 + day -> 1.4.2024 00:00:00
+    (even though (31.3.2024 00:00:00 + 24 hours) = (1.4.2024 01:00:00)
+    due to daylight saving time)
+
+    Note: Doesn't work if the given epoch_timestamp is exactly by seconds
+    the exact time when daylight saving time changes.
+    """
+
+    start_dt = get_localized_datetime(epoch_timestamp, tzinfo)
+    next_dt = start_dt + timedelta(days=days, weeks=weeks)
+
+    next_dt = reset_dt_timezone(next_dt, tzinfo)
+
+    return datetime_to_epoch(next_dt)
+
+
+def reset_dt_timezone(
+    dt: datetime, tzinfo=pytz.timezone("Europe/Helsinki")
+) -> datetime:
+    """
+    Sets tzinfo to None and then sets it to given tzinfo.
+    (Change timezone without converting time to new timezones time.)
+    """
+    return tzinfo.localize(dt.replace(tzinfo=None))
 
 
 def datetime_to_epoch(datetime_to: datetime) -> int:
