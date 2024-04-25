@@ -18,23 +18,23 @@ def calculate_days(
     upper_limit = _upper_limit(end, weekday)  # End of last weekday
 
     while True:
-        start_day = utils.get_localized_datetime(lower_limit).replace(
+        start_day = utils.get_localized_datetime(lower_limit, tzinfo).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        end_day = (
-            (start_day + timedelta(days=1))  # + 1 day
-            .astimezone(tzinfo)  # + timedelta doesn't check if timezone changes
-            .replace(hour=0, minute=0, second=0, microsecond=0)
+        start_day = utils.reset_dt_timezone(start_day, tzinfo)
+
+        # +1 day and time to 00:00:00
+        end_day = (start_day + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
         )
+        end_day = utils.reset_dt_timezone(end_day, tzinfo)
+
         weekdays.append(
             (utils.datetime_to_epoch(start_day), utils.datetime_to_epoch(end_day))
         )
 
-        lower_limit = utils.datetime_to_epoch(
-            (start_day + timedelta(weeks=1))  # + 1 week
-            .astimezone(tzinfo)  # + timedelta doesn't check if timezone changes
-            .replace(hour=0, minute=0, second=0, microsecond=0)
-        )
+        lower_limit = utils.reset_dt_timezone(start_day + timedelta(weeks=1), tzinfo)
+        lower_limit = utils.datetime_to_epoch(lower_limit)
 
         if lower_limit > upper_limit:
             break
@@ -68,6 +68,7 @@ def calculate_timestamps(start: int, end: int, interval: int) -> List[int]:
     return timestamps
 
 
+
 def _lower_limit(start: int, weekday: str) -> int:
     """
     Finds the next closest day (can be the given start day) to given start time
@@ -89,20 +90,16 @@ def _lower_limit(start: int, weekday: str) -> int:
 
     days_to_add = (target_weekday - current_weekday) % 7
 
-    # Current weekday is the target weekday
-    if days_to_add == 0:
-        # Return current day but time set to 00:00:00.
-        return fin_datetime.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ).timestamp()
-
     # Calculate the weekday
-    lower_limit = fin_datetime + timedelta(days=days_to_add)
+    lower_limit_dt = fin_datetime + timedelta(days=days_to_add)
 
     # Set time to 00:00:00
-    lower_limit = lower_limit.replace(hour=0, minute=0, second=0, microsecond=0)
+    lower_limit_dt = lower_limit_dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    return int(lower_limit.timestamp())
+    # Reset timezone in case of daylight saving time changes
+    lower_limit_dt = utils.reset_dt_timezone(lower_limit_dt)
+
+    return int(lower_limit_dt.timestamp())
 
 
 def _upper_limit(end: int, weekday: str) -> int:
@@ -133,6 +130,7 @@ def _upper_limit(end: int, weekday: str) -> int:
         # +1 day
         fin_datetime = fin_datetime + timedelta(days=1)
         # Return the day, time set to 00:00:00.
+
         return int(
             fin_datetime.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         )
@@ -146,12 +144,15 @@ def _upper_limit(end: int, weekday: str) -> int:
     # +1 day
     upper_limit_dt = upper_limit_dt + timedelta(days=1)
 
+    # Reset timezone in case of daylight saving time changes
+    upper_limit_dt = utils.reset_dt_timezone(upper_limit_dt)
+
     return int(upper_limit_dt.timestamp())
 
 
 def get_unique_epochs(all_epochs: List[int]) -> List[str]:
     """
-    Returns a list
+    Returns a list of unique epochs as format "%d-%m-%Y".
     """
     dates = [utils.get_finnish_date(epoch) for epoch in all_epochs]
 
