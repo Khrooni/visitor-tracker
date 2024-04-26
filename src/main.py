@@ -39,9 +39,11 @@ DEFAULT_GRAPH_AMOUNT = 1
 
 GRAPH_MODES = {
     "Visitors": "avg",
-    "Average Visitors": "all_time_avg",
     "Highest Visitors": "max",
     "Lowest Visitors": "min",
+}
+WEEKDAY_TIME_RANGE_GRAPH_MODES = {
+    "Visitors": "avg"
 }
 DEFAULT_GRAPH_MODE = "Visitors"
 
@@ -76,6 +78,8 @@ DEFAULT_WEEKDAY = "Monday"
 TIME_RANGES = ["48 hours", "7 days", "1 month", "3 months", "6 months", "1 year", "ALL"]
 DEFAULT_TIME_RANGE = "1 month"
 
+LOCATIONS = ["1"]
+DEFAULT_LOCATION_ID = LOCATIONS[0]
 
 class App(ctk.CTk):
     def __init__(self, title, size=WINDOW_START_SIZE, min_size=WINDOW_MIN_SIZE):
@@ -279,6 +283,7 @@ class SideBarGraph(ctk.CTkFrame):
             self.unique_dates,
             self.parent.all_graphs[0],
         )
+
         self.graph2_tab = GraphTab(
             self.tabview,
             "Graph 2",
@@ -323,12 +328,16 @@ class Graph(ctk.CTkFrame):
         self, master=None, element_color="red", padx=10, pady=10, *args, **kwargs
     ):
         super().__init__(master, *args, **kwargs)
-        self.graph_date: str = DEFAULT_GRAPH_DATE
+        self.time_mode: str = DEFAULT_TIME_MODE
+        self.location_id: int = DEFAULT_LOCATION_ID
+
         self.graph_mode: str = DEFAULT_GRAPH_MODE
         self.graph_type: str = DEFAULT_GRAPH_TYPE
-        self.time_mode: str = DEFAULT_TIME_MODE
+
+        self.graph_date: str = DEFAULT_GRAPH_DATE
         self.weekday: str = DEFAULT_WEEKDAY
         self.time_range: str = DEFAULT_TIME_RANGE
+
         self.title: str = "Default title"
         self.x_values: List = []
         self.y_values: List = []
@@ -368,37 +377,52 @@ class Graph(ctk.CTkFrame):
 
         self.canvas.draw()
 
-    def _get_graph_data(self):
+    def _get_graph_data(self) -> bool:
         search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
-        search_end = search_start + 24 * 60 * 60  # +24 hours
+        search_end = utils.next_time(search_start, days=1) # +1 day
+
+        print(utils.get_formatted_finnish_time(search_start))
+        print(utils.get_formatted_finnish_time(search_end))
 
         try:
             db_handle = database.SQLiteDBManager()
+            if self.time_mode == "Calendar":
+                visitors = db_handle.get_data_by_mode(
+                    1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
+                )
+                timestamps = database.helpers.calculate_timestamps(
+                    search_start, search_end, 60 * 60
+                )
+            elif self.time_mode == "Days of the week":
+                visitors = db_handle.get_average_visitors(1, WEEKDAYS.get(self.weekday))
 
-            visitors = db_handle.get_data_by_mode(
-                1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
-            )
-            timestamps = database.helpers.calculate_timestamps(
-                search_start, search_end, 60 * 60
-            )
-
+                # Korjaa! Voisi varmaan suoraan hakea tunnit eikä hakea epocheja,
+                # jotka muutetaan tunneiksi converr_for_day_graphilla
+                timestamps = utils.day_epochs()
+                
+            elif self.time_mode == "Time range":
+                print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
         finally:
             db_handle.__del__()
 
         self.x_values, self.y_values = utils.convert_for_day_graph(timestamps, visitors)
 
-        # Korjaa! Lisää check, että oikean tyyppistä dataa.
-        # for time_stamp in data[0]:
-        for time_stamp in timestamps:
-            if time_stamp is not None:
-                found_date = time_stamp
-                break
-        date = utils.get_finnish_date(found_date)
-        day = utils.get_finnish_day(found_date)
-        location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
-        self.title = f"{location_name}, {day}, {date}"
-        self.x_label = "Hour"
-        self.y_label = self.graph_mode
+        self._set_title_labels(timestamps)
+
+        # # Korjaa! Lisää check, että oikean tyyppistä dataa.
+        # # for time_stamp in data[0]:
+        # for time_stamp in timestamps:
+        #     if time_stamp is not None:
+        #         found_date = time_stamp
+        #         break
+        # date = utils.get_finnish_date(found_date)
+        # day = utils.get_finnish_day(found_date)
+        # location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
+
+
+        # self.title = f"{location_name}, {day}, {date}"
+        # self.x_label = "Hour"
+        # self.y_label = self.graph_mode
 
     def _graph_settings(self):
         self.ax.clear()
@@ -414,6 +438,34 @@ class Graph(ctk.CTkFrame):
         )
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
+    
+    def _set_title_labels(self, timestamps: list[int]):
+        if self.time_mode == "Calendar":
+            # Korjaa! Lisää check, että oikean tyyppistä dataa.
+            # for time_stamp in data[0]:
+            for time_stamp in timestamps:
+                if time_stamp is not None:
+                    found_date = time_stamp
+                    break
+            date = utils.get_finnish_date(found_date)
+            day = utils.get_finnish_day(found_date)
+            location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
+
+
+            self.title = f"{location_name}, {day}, {date}"
+            self.x_label = "Hour"
+            self.y_label = self.graph_mode
+        elif self.time_mode == "Days of the week":
+            location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
+            day = self.weekday
+
+            self.title = f"{location_name}, {day}"
+            self.x_label = "Hour"
+            self.y_label = self.graph_mode
+            
+        elif self.time_mode == "Time range":
+            print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
+
 
 
 class GraphTab:
@@ -472,13 +524,11 @@ class GraphTab:
             height=90,
             fg_color=DARK_GREY,
         )
-        self.time_mode_frame.pack(side=ctk.TOP, expand=True, pady=(0,5))
+        self.time_mode_frame.pack(side=ctk.TOP, expand=True, pady=(0, 5))
         self.time_mode_frame.pack_propagate(False)
 
         # Calendar frame
-        self.calendar_frame = ctk.CTkFrame(
-            self.time_mode_frame, fg_color="transparent"
-        )
+        self.calendar_frame = ctk.CTkFrame(self.time_mode_frame, fg_color="transparent")
         self.calendar_frame.place(
             in_=self.time_mode_frame,
             relx=0.5,
@@ -526,6 +576,7 @@ class GraphTab:
         self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
+        self.cal.bind("<Control-a>", lambda e: None)  # Enable Ctrl + a
         self.cal.pack(side=ctk.TOP, fill="both", expand=True)
 
         # Weekday frame
@@ -552,8 +603,6 @@ class GraphTab:
             SIDEBAR_BUTTON_WIDTH,
         )
         self.weekday_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
-
-
 
         # Time range frame
         self.time_range_frame = ctk.CTkFrame(
@@ -605,6 +654,19 @@ class GraphTab:
         )
         self.graph_type_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
+        # Location dropdown menu and label
+        self.location_menu = DropdownAndLabel(
+            self.scrollable_frame,
+            "Location:",
+            LOCATIONS,
+            self.change_location_event,
+            DEFAULT_LOCATION_ID,
+            SIDEBAR_BUTTON_WIDTH,
+        )
+        self.location_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
+
+
+
     def plot_graph_event(self):
         print("plot single graph")
         self.graph_page.draw_single_graph(self.graph_num)
@@ -634,11 +696,17 @@ class GraphTab:
         print("Set time mode to: ", value)
         if value == "Calendar":
             self.calendar_frame.lift()
+            self.graph_mode_menu.set_menu_values(GRAPH_MODES, DEFAULT_GRAPH_MODE)
+            self.graph.graph_mode = DEFAULT_GRAPH_MODE
         elif value == "Days of the week":
             self.weekday_frame.lift()
+            self.graph_mode_menu.set_menu_values(WEEKDAY_TIME_RANGE_GRAPH_MODES, DEFAULT_GRAPH_MODE)
+            self.graph.graph_mode = DEFAULT_GRAPH_MODE
         elif value == "Time range":
             self.time_range_frame.lift()
-            
+            self.graph_mode_menu.set_menu_values(WEEKDAY_TIME_RANGE_GRAPH_MODES, DEFAULT_GRAPH_MODE)
+            self.graph.graph_mode = DEFAULT_GRAPH_MODE
+
         self.graph.time_mode = value
 
     def change_weekday_event(self, value):
@@ -648,9 +716,12 @@ class GraphTab:
     def change_time_range_event(self, value):
         print("Set time range to: ", value)
         self.graph.time_range = value
+    
+    def change_location_event(self, value):
+        print("Set location to:", value)
+        self.graph.location_id = value
+        
 
-    def test(self, event):
-        pass
 
 
 class DropdownAndLabel(ctk.CTkFrame):
@@ -678,6 +749,11 @@ class DropdownAndLabel(ctk.CTkFrame):
             width=menu_width,
         )
         self.option_menu.pack(side=ctk.TOP, padx=0, pady=0)
+
+    def set_menu_values(self, values: list[str], default_value: str):
+        self.option_menu.configure(
+            values=values, variable=ctk.StringVar(value=default_value)
+        )
 
 
 class DatabasePage(ctk.CTkFrame):
@@ -729,6 +805,7 @@ class MainFrameDatabase(ctk.CTkFrame):
         )
         self.textbox.bind("<Key>", lambda e: "break")
         self.textbox.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
+        self.textbox.bind("<Control-a>", lambda e: None)  # Enable Ctrl + a
 
         self.pack_propagate(False)
         self.pack(fill="both", expand=True, side=side, padx=10, pady=10)
