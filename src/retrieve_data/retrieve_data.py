@@ -104,12 +104,3 @@ def get_data() -> List[Location]:
     for location in locations:
         location_data.append(location)
     return location_data
-
-
-def main():
-
-    print()
-
-
-if __name__ == "__main__":
-    main()
