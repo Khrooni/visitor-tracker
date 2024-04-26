@@ -48,6 +48,23 @@ def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
 
     return formatted_list
 
+def day_epochs() -> list[int]:
+    """
+    Returns a list of epochs with values in interval 1 hour from 
+    December 12, 2024 00:00:00 GMT+02:00 to December 12, 2024 23:00:00 GMT+02:00.
+    """
+
+    epochs = []
+
+    start_epoch = 1733954400 # Thursday, December 12, 2024 00:00:00 GMT+02:00
+
+    hour = 60 * 60
+
+    for i in range(24):
+        epochs.append(start_epoch + (i * hour))
+
+    return epochs
+
 
 def nones_to_zeros(my_list: list[Any | None]) -> list[Any | int]:
     """Convert all None values to 0."""
