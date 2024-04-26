@@ -10,6 +10,8 @@ from .helpers import (
     calculate_days,
     calculate_timestamps,
     calculate_averages,
+    calculate_missing_or_extra_hour,
+    add_or_remove_extra_values
 )
 from retrieve_data import Location
 
@@ -164,7 +166,7 @@ class SQLiteDBManager:
 
     def get_average_visitors(
         self, location_id: int, weekday: str
-    ) -> tuple[list[int], list[int]]:
+    ) -> list[int]:
         """
         Calculates the average number of visitors and corresponding timestamps for a given location and weekday.
         Averages are calculated for every hour of the day (00, 01, ..., 23)
@@ -175,12 +177,8 @@ class SQLiteDBManager:
             - e.g., ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
 
         Returns:
-        - tuple[list[int], list[int]]: A tuple containing:
-            - A list of average visitor counts for every hour.
-            - A list of corresponding epoch timestamps for every hour.
+        - list[int]: A list of average visitor counts for every hour.
         """
-
-        epochs = []
 
         total_sums = []
         total_counts = []
@@ -205,9 +203,21 @@ class SQLiteDBManager:
                 interval,
             )
 
-            if not total_sums or not epochs:
-                epochs = calculate_timestamps(start, end, interval)
+            missing_hour = None
 
+            if new_sums.__len__() != 24:
+                missing_hour = calculate_missing_or_extra_hour(start, end, interval)
+                new_sums = add_or_remove_extra_values(new_sums, missing_hour, 0, 24)
+
+            if new_counts.__len__() != 24:
+                if not missing_hour:
+                    missing_hour = calculate_missing_or_extra_hour(start, end, interval)
+                new_counts = add_or_remove_extra_values(new_counts, missing_hour, 0, 24)
+
+                
+
+
+            if not total_sums or not total_counts:
                 total_counts.extend(new_counts)
                 total_sums = [
                     0 if not are_ints(visitor_sum) else visitor_sum
@@ -228,7 +238,7 @@ class SQLiteDBManager:
 
         averages = calculate_averages(total_sums, total_counts)
 
-        return averages, epochs
+        return averages
 
     def get_data_by_mode(
         self, location_id: int, start: int, end: int, mode: str, interval: int
