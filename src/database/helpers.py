@@ -1,6 +1,6 @@
 import re
 import string
-from typing import List
+from typing import List, Any
 from datetime import datetime, timedelta
 import utils
 
@@ -66,7 +66,6 @@ def calculate_timestamps(start: int, end: int, interval: int) -> List[int]:
         timestamps.append(start + i * interval)
 
     return timestamps
-
 
 
 def _lower_limit(start: int, weekday: str) -> int:
@@ -148,6 +147,136 @@ def _upper_limit(end: int, weekday: str) -> int:
     upper_limit_dt = utils.reset_dt_timezone(upper_limit_dt)
 
     return int(upper_limit_dt.timestamp())
+
+
+def add_or_remove_extra_values(
+    value_list: list, value_index: int, added_value: Any | list = 0, expected_list_size = 24
+) -> list:
+    """
+    Add/remove values to/from specific index(es) in a given list. Values are added/removed
+    to/from the given index and indexes after it, for as many indexes as the difference
+    between the size of the given list and expected_list_size.
+
+    Parameters:
+    - value_list (list): Given list.
+    - value_index (int): The specific index where adding/removing the value(s) should start from.
+    - expected_list_size (int): Expected size of the returned list.
+    - added_value (Any | list):
+        - If 'added_value' is not a list, the value will be added/removed to/from the chosen index(es).
+        - If 'added_value' is a list, its element(s) will be added/removed sequentially to/from the chosen index(es),
+            repeating as needed to fill/reduce the size gap.
+
+    Raises:
+    - IndexError: If added_value is a list that didn't have enough elements to add. (added_value list
+        should have as many elements as there are values to be added to the new list)
+    """
+    new_list = value_list
+
+    if value_list.__len__() < expected_list_size:
+        new_list = _add_values(value_list, value_index, expected_list_size, added_value)
+    elif value_list.__len__() > 24:
+        new_list = _remove_values(value_list, value_index, expected_list_size)
+
+    return new_list
+
+
+def _add_values(
+    value_list: list, value_index: int, expected_list_size: int, added_value: Any | list
+) -> list:
+    """
+    Add values to specific index(es) in a given list. Values are added to the given index
+    and indexes after it, for as many indexes as the difference between the size of the given
+    list and expected_list_size.
+
+    Parameters:
+    - value_list (list): Given list.
+    - value_index (int): The specific index where adding the value(s) should start from.
+    - expected_list_size (int): Expected size of the returned list.
+    - added_value (Any | list):
+        - If 'added_value' is not a list, the value will be added to the chosen index(es).
+        - If 'added_value' is a list, its element(s) will be added sequentially to the chosen index(es),
+            repeating as needed to fill the size gap.
+
+    Raises:
+    - ValueError: If the size of 'value_list' is greater than 'expected_list_size'.
+    - IndexError: If added_value is a list that didn't have enough elements to add. (added_value list
+        should have as many elements as there are values to be added to the new list)
+    """
+    value_list_size = value_list.__len__()
+
+    if value_list_size > expected_list_size:
+        raise ValueError(
+            "Expected_list_size should be greater than the size of value_list."
+        )
+
+    new_list = []
+
+    for i in range(value_list_size):
+        if i == value_index:
+
+            for j in range(expected_list_size - value_list_size):
+                if isinstance(added_value, list):
+                    new_list.append(added_value[j])
+                else:
+                    new_list.append(added_value)
+
+        new_list.append(value_list[i])
+
+    return new_list
+
+
+def _remove_values(value_list: list, value_index: int, expected_list_size: int) -> list:
+
+    value_list_size = value_list.__len__()
+
+    if value_list_size < expected_list_size:
+        raise ValueError("Expected_list_size should be less than the size of value_list.")
+
+    new_list = []
+
+    i = 0
+    while i < value_list_size:
+        if i == value_index:
+            # Don't add value(s) in given index
+            i += value_list_size - expected_list_size
+            continue
+
+        new_list.append(value_list[i])
+        i += 1
+
+    return new_list
+
+
+def calculate_missing_or_extra_hour(
+    start: int, end: int, interval: int, tzinfo=pytz.timezone("Europe/Helsinki")
+) -> int:
+    hour_counter = 0
+
+    duration = end - start
+    loops = math.floor(duration / interval)
+
+    for i in range(loops):
+        start_time = start + i * interval
+        end_time = start + (i + 1) * interval
+
+        start_dt = utils.get_localized_datetime(start_time, tzinfo)
+        end_dt = utils.get_localized_datetime(end_time, tzinfo)
+
+        start_tzinfo = start_dt.dst()
+        end_tzinfo = end_dt.dst()
+
+        if start_tzinfo != end_tzinfo:
+            break
+
+        hour_counter += 1
+
+    start_time = start + (i + 1) * interval
+    end_time = start + (i + 2) * interval
+
+    start_dt = utils.get_localized_datetime(start_time, tzinfo)
+    end_dt = utils.get_localized_datetime(end_time, tzinfo)
+
+    return hour_counter
 
 
 def get_unique_epochs(all_epochs: List[int]) -> List[str]:
