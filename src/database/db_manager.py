@@ -4,18 +4,7 @@ from typing import List
 import re
 import math
 
-from .helpers import (
-    are_ints,
-    get_unique_epochs,
-    calculate_days,
-    calculate_timestamps,
-    calculate_averages,
-    calculate_missing_or_extra_hour,
-    add_or_remove_extra_values
-)
-from retrieve_data import Location
-
-import time
+from . import helpers
 
 
 DB_NAME = "visitorTrackingDB.db"
@@ -149,7 +138,7 @@ class SQLiteDBManager:
         """
         activity_list: List[tuple] = []
 
-        if not are_ints(location_id, start, end) or (start < 0 or end < 0):
+        if not helpers.are_ints(location_id, start, end) or (start < 0 or end < 0):
             return activity_list
 
         pstmt_get_between: str = """SELECT epoch_timestamp, location_visitors 
@@ -164,9 +153,7 @@ class SQLiteDBManager:
 
         return activity_list
 
-    def get_average_visitors(
-        self, location_id: int, weekday: str
-    ) -> list[int]:
+    def get_average_visitors(self, location_id: int, weekday: str) -> list[int]:
         """
         Calculates the average number of visitors and corresponding timestamps for a given location and weekday.
         Averages are calculated for every hour of the day (00, 01, ..., 23)
@@ -206,21 +193,26 @@ class SQLiteDBManager:
             missing_hour = None
 
             if new_sums.__len__() != 24:
-                missing_hour = calculate_missing_or_extra_hour(start, end, interval)
-                new_sums = add_or_remove_extra_values(new_sums, missing_hour, 0, 24)
+                missing_hour = helpers.calculate_missing_or_extra_hour(
+                    start, end, interval
+                )
+                new_sums = helpers.add_or_remove_extra_values(
+                    new_sums, missing_hour, 0, 24
+                )
 
             if new_counts.__len__() != 24:
                 if not missing_hour:
-                    missing_hour = calculate_missing_or_extra_hour(start, end, interval)
-                new_counts = add_or_remove_extra_values(new_counts, missing_hour, 0, 24)
-
-                
-
+                    missing_hour = helpers.calculate_missing_or_extra_hour(
+                        start, end, interval
+                    )
+                new_counts = helpers.add_or_remove_extra_values(
+                    new_counts, missing_hour, 0, 24
+                )
 
             if not total_sums or not total_counts:
                 total_counts.extend(new_counts)
                 total_sums = [
-                    0 if not are_ints(visitor_sum) else visitor_sum
+                    0 if not helpers.are_ints(visitor_sum) else visitor_sum
                     for visitor_sum in new_sums
                 ]
             else:
@@ -232,11 +224,15 @@ class SQLiteDBManager:
 
                 # total sums += visitor sum (if visitor sum is a integer)
                 total_sums = [
-                    current_sum + visitor_sum if are_ints(visitor_sum) else current_sum
+                    (
+                        current_sum + visitor_sum
+                        if helpers.are_ints(visitor_sum)
+                        else current_sum
+                    )
                     for current_sum, visitor_sum in zip(total_sums, new_sums)
                 ]
 
-        averages = calculate_averages(total_sums, total_counts)
+        averages = helpers.calculate_averages(total_sums, total_counts)
 
         return averages
 
@@ -264,7 +260,7 @@ class SQLiteDBManager:
         """
         activity_list: List[int] = []
 
-        if not are_ints(location_id, start, end, interval):
+        if not helpers.are_ints(location_id, start, end, interval):
             raise TypeError(
                 "Arguments 'location_id', 'start', and 'end' must be integers."
             )
@@ -290,7 +286,7 @@ class SQLiteDBManager:
         self, location_id: int, start: int, end: int, mode: str
     ) -> int | None:
 
-        if not are_ints(location_id, start, end):
+        if not helpers.are_ints(location_id, start, end):
             raise TypeError(
                 "Arguments 'location_id', 'start', and 'end' must be integers."
             )
@@ -332,7 +328,7 @@ class SQLiteDBManager:
         else:
             return []
 
-        return calculate_days(first_timestamp, last_timestamp, weekday)
+        return helpers.calculate_days(first_timestamp, last_timestamp, weekday)
 
     def _has_data(self, location_id: int, start_epoch: int, end_epoch: int) -> bool:
         """
@@ -356,13 +352,23 @@ class SQLiteDBManager:
         else:
             return False
 
+    def get_locations_dict(self) -> dict[str:int]:
+        locations = {}
+
+        locations_data = self.get_all("locations")
+
+        for location_id, location_name in locations_data:
+            locations.update({location_name: location_id})
+
+        return locations
+
     def get_locations(self) -> List[tuple[int, str]]:
         return self.get_all("locations")
 
     def get_unique_dates(self, location_id: int) -> List[int]:
         unique_epochs = []
 
-        if not are_ints(location_id):
+        if not helpers.are_ints(location_id):
             return unique_epochs
 
         all_epochs = []
@@ -380,7 +386,7 @@ class SQLiteDBManager:
                 if len(row) > 0:
                     all_epochs.append(row[0])
 
-        unique_epochs = get_unique_epochs(all_epochs)
+        unique_epochs = helpers.get_unique_epochs(all_epochs)
 
         return unique_epochs
 
