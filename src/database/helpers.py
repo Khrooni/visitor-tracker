@@ -269,13 +269,7 @@ def calculate_missing_or_extra_hour(
             break
 
         hour_counter += 1
-
-    start_time = start + (i + 1) * interval
-    end_time = start + (i + 2) * interval
-
-    start_dt = utils.get_localized_datetime(start_time, tzinfo)
-    end_dt = utils.get_localized_datetime(end_time, tzinfo)
-
+        
     return hour_counter
 
 
