@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from tkcalendar import DateEntry, Calendar
+from tkcalendar import DateEntry
 
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -19,70 +19,12 @@ import database.helpers
 import retrieve_data
 from retrieve_data import Location
 import utils
+import constants
 
 
-WINDOW_START_SIZE = (1100, 600)
-WINDOW_MIN_SIZE = (850, 550)
-SIDEBAR_WIDTH = 300
-SIDEBAR_BUTTON_WIDTH = 170
-DEFAULT_COL_INTERVAL = "30 min"
-DATA_COL_INTERVALS = {
-    "30 sec": 30,
-    "1 min": 60,
-    "5 min": 5 * 60,
-    "10 min": 10 * 60,
-    "30 min": 30 * 60,
-    "1 hour": 60 * 60,
-}
-GRAPH_AMOUNTS = {"1": 1, "2": 2, "4": 4}
-DEFAULT_GRAPH_AMOUNT = 1
-
-GRAPH_MODES = {
-    "Visitors": "avg",
-    "Highest Visitors": "max",
-    "Lowest Visitors": "min",
-}
-WEEKDAY_TIME_RANGE_GRAPH_MODES = {
-    "Visitors": "avg"
-}
-DEFAULT_GRAPH_MODE = "Visitors"
-
-GRAPH_TYPES = ["Bar Graph", "Line Graph"]
-DEFAULT_GRAPH_TYPE = "Bar Graph"
-DEFAULT_GRAPH_DATE = datetime.datetime.now().strftime("%d-%m-%Y")
-
-TEXTBOX_WIDTH = 350
-
-
-DATE_ENTRY_FONT_SMALLNESS = 7  # Smaller number -> Smaller font size
-CALENDAR_FONT_SMALLNESS = 12  # Smaller number -> Smaller font size
-
-TIME_MODES = ["Calendar", "Days of the week", "Time range"]
-DEFAULT_TIME_MODE = "Calendar"
-
-DARK_GREY = "#2b2b2b"
-LIGHT_GREY = "#333333"
-
-WEEKDAYS = {
-    "Monday": "mon",
-    "Tuesday": "tue",
-    "Wednesday": "wed",
-    "Thursday": "thu",
-    "Friday": "fri",
-    "Saturday": "sat",
-    "Sunday": "sun",
-}
-
-DEFAULT_WEEKDAY = "Monday"
-
-TIME_RANGES = ["48 hours", "7 days", "1 month", "3 months", "6 months", "1 year", "ALL"]
-DEFAULT_TIME_RANGE = "1 month"
-
-LOCATIONS = ["1"]
-DEFAULT_LOCATION_ID = LOCATIONS[0]
 
 class App(ctk.CTk):
-    def __init__(self, title, size=WINDOW_START_SIZE, min_size=WINDOW_MIN_SIZE):
+    def __init__(self, title, size=constants.WINDOW_START_SIZE, min_size=constants.WINDOW_MIN_SIZE):
         super().__init__()
         self.title(title)
         positions = self._calculte_positions(size)
@@ -129,7 +71,7 @@ class GraphPage(ctk.CTkFrame):
         self.pack(side="top", fill="both", expand="true")
 
         self.all_graphs: List[Graph] = []
-        self.graph_amount = DEFAULT_GRAPH_AMOUNT
+        self.graph_amount = constants.DEFAULT_GRAPH_AMOUNT
 
         # Used to decide if graphs need to be rearranged
         self.active_graph_amount = None
@@ -142,7 +84,7 @@ class GraphPage(ctk.CTkFrame):
             self.main_frame,
             font=ctk.CTkFont(size=50, weight="bold"),
             text="No graphs plotted",
-            width=TEXTBOX_WIDTH,
+            width=constants.TEXTBOX_WIDTH,
             height=50,
             fg_color="transparent",
             bg_color="transparent",
@@ -228,18 +170,29 @@ class SideBarGraph(ctk.CTkFrame):
     def __init__(
         self,
         parent: GraphPage,
-        width=SIDEBAR_WIDTH,
+        width=constants.SIDEBAR_WIDTH,
     ):
         super().__init__(parent, width=width, corner_radius=0)
         self.parent: GraphPage = parent
 
         self.unique_dates = []
+        self.locations = {"No locations": 0}
+        self.default_location = next(iter(self.locations.keys()))
 
+        db_handle = None
         try:
             db_handle = database.SQLiteDBManager()
-            self.unique_dates = db_handle.get_unique_dates(1)
+
+            locations_dict = db_handle.get_locations_dict()
+
+            if locations_dict:
+                self.locations = locations_dict
+                self.default_location = next(iter(locations_dict.keys()))
+
+            self.unique_dates = db_handle.get_unique_dates(self.locations.get(self.default_location))
         finally:
-            db_handle.__del__()
+            if db_handle:
+                db_handle.__del__()
 
         self.pack_propagate(False)
 
@@ -254,7 +207,7 @@ class SideBarGraph(ctk.CTkFrame):
             self,
             command=self.plot_all_button_event,
             text="Plot All Graphs",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.plot_all_button.pack(side=ctk.TOP, padx=10, pady=(5, 10))
 
@@ -262,52 +215,36 @@ class SideBarGraph(ctk.CTkFrame):
         self.graph_amount_menu = DropdownAndLabel(
             self,
             "Graph Amount:",
-            list(GRAPH_AMOUNTS.keys()),
+            list(constants.GRAPH_AMOUNTS.keys()),
             self.change_graph_amount_event,
-            DEFAULT_GRAPH_AMOUNT,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_GRAPH_AMOUNT,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_amount_menu.pack(side=ctk.TOP, padx=10, pady=0)
 
         # Create graph tabview
-        self.tabview = ctk.CTkTabview(self, width=SIDEBAR_WIDTH)
+        self.tabview = ctk.CTkTabview(self, width=constants.SIDEBAR_WIDTH)
         self.tabview.pack(side=ctk.TOP, fill="y", expand=True, pady=(15, 10), padx=10)
         self.tabview._segmented_button.configure(font=ctk.CTkFont(size=15))
         self.tabview.pack_propagate(False)
 
-        self.graph1_tab = GraphTab(
-            self.tabview,
-            "Graph 1",
-            self.parent,
-            0,
-            self.unique_dates,
-            self.parent.all_graphs[0],
-        )
+        self.graph_tabs = []
 
-        self.graph2_tab = GraphTab(
-            self.tabview,
-            "Graph 2",
-            self.parent,
-            1,
-            self.unique_dates,
-            self.parent.all_graphs[1],
-        )
-        self.graph3_tab = GraphTab(
-            self.tabview,
-            "Graph 3",
-            self.parent,
-            2,
-            self.unique_dates,
-            self.parent.all_graphs[2],
-        )
-        self.graph4_tab = GraphTab(
-            self.tabview,
-            "Graph 4",
-            self.parent,
-            3,
-            self.unique_dates,
-            self.parent.all_graphs[3],
-        )
+        # Create 4 graph tabs
+        for i in range(4):
+            graph_name = f"Graph {i+1}"
+            self.graph_tabs.append(
+                GraphTab(
+                    self.tabview,
+                    graph_name,
+                    self.parent,
+                    i,
+                    self.unique_dates,
+                    self.parent.all_graphs[i],
+                    self.locations,
+                    self.default_location,
+                )
+            )
 
     def plot_all_button_event(self):
         print("PLOTTING bars...")
@@ -318,7 +255,7 @@ class SideBarGraph(ctk.CTkFrame):
     def change_graph_amount_event(self, value):
         print("Amount")
         print("Amount: ", value)
-        oikea = GRAPH_AMOUNTS.get(value)
+        oikea = constants.GRAPH_AMOUNTS.get(value)
 
         self.parent.graph_amount = oikea
 
@@ -328,15 +265,16 @@ class Graph(ctk.CTkFrame):
         self, master=None, element_color="red", padx=10, pady=10, *args, **kwargs
     ):
         super().__init__(master, *args, **kwargs)
-        self.time_mode: str = DEFAULT_TIME_MODE
-        self.location_id: int = DEFAULT_LOCATION_ID
+        self.time_mode: str = constants.DEFAULT_TIME_MODE
+        self.locations: dict = constants.NO_LOCATIONS
+        self.location_name: str = constants.DEFAULT_LOCATION
 
-        self.graph_mode: str = DEFAULT_GRAPH_MODE
-        self.graph_type: str = DEFAULT_GRAPH_TYPE
+        self.graph_mode: str = constants.DEFAULT_GRAPH_MODE
+        self.graph_type: str = constants.DEFAULT_GRAPH_TYPE
 
-        self.graph_date: str = DEFAULT_GRAPH_DATE
-        self.weekday: str = DEFAULT_WEEKDAY
-        self.time_range: str = DEFAULT_TIME_RANGE
+        self.graph_date: str = constants.DEFAULT_GRAPH_DATE
+        self.weekday: str = constants.DEFAULT_WEEKDAY
+        self.time_range: str = constants.DEFAULT_TIME_RANGE
 
         self.title: str = "Default title"
         self.x_values: List = []
@@ -379,7 +317,7 @@ class Graph(ctk.CTkFrame):
 
     def _get_graph_data(self) -> bool:
         search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
-        search_end = utils.next_time(search_start, days=1) # +1 day
+        search_end = utils.next_time(search_start, days=1)  # +1 day
 
         print(utils.get_formatted_finnish_time(search_start))
         print(utils.get_formatted_finnish_time(search_end))
@@ -388,18 +326,24 @@ class Graph(ctk.CTkFrame):
             db_handle = database.SQLiteDBManager()
             if self.time_mode == "Calendar":
                 visitors = db_handle.get_data_by_mode(
-                    1, search_start, search_end, GRAPH_MODES.get(self.graph_mode), 60 * 60
+                    self.locations.get(self.location_name),
+                    search_start,
+                    search_end,
+                    constants.GRAPH_MODES.get(self.graph_mode),
+                    60 * 60,
                 )
                 timestamps = database.helpers.calculate_timestamps(
                     search_start, search_end, 60 * 60
                 )
             elif self.time_mode == "Days of the week":
-                visitors = db_handle.get_average_visitors(1, WEEKDAYS.get(self.weekday))
+                visitors = db_handle.get_average_visitors(
+                    self.locations.get(self.location_name), constants.WEEKDAYS.get(self.weekday)
+                )
 
                 # Korjaa! Voisi varmaan suoraan hakea tunnit eikä hakea epocheja,
                 # jotka muutetaan tunneiksi converr_for_day_graphilla
                 timestamps = utils.day_epochs()
-                
+
             elif self.time_mode == "Time range":
                 print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
         finally:
@@ -419,7 +363,6 @@ class Graph(ctk.CTkFrame):
         # day = utils.get_finnish_day(found_date)
         # location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
 
-
         # self.title = f"{location_name}, {day}, {date}"
         # self.x_label = "Hour"
         # self.y_label = self.graph_mode
@@ -438,7 +381,7 @@ class Graph(ctk.CTkFrame):
         )
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
-    
+
     def _set_title_labels(self, timestamps: list[int]):
         if self.time_mode == "Calendar":
             # Korjaa! Lisää check, että oikean tyyppistä dataa.
@@ -449,23 +392,17 @@ class Graph(ctk.CTkFrame):
                     break
             date = utils.get_finnish_date(found_date)
             day = utils.get_finnish_day(found_date)
-            location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
 
-
-            self.title = f"{location_name}, {day}, {date}"
+            self.title = f"{self.location_name}, {day}, {date}"
             self.x_label = "Hour"
             self.y_label = self.graph_mode
         elif self.time_mode == "Days of the week":
-            location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
-            day = self.weekday
-
-            self.title = f"{location_name}, {day}"
+            self.title = f"{self.location_name}, {self.weekday}"
             self.x_label = "Hour"
             self.y_label = self.graph_mode
-            
+
         elif self.time_mode == "Time range":
             print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
-
 
 
 class GraphTab:
@@ -477,6 +414,8 @@ class GraphTab:
         graph_num: int,
         unique_dates: List[int],
         graph: Graph,
+        locations: dict[str, int],
+        default_location: str,
     ):
         parent.add(tab_name)
         self.handle = parent.tab(tab_name)
@@ -484,6 +423,8 @@ class GraphTab:
         self.graph_page = graph_page
         self.graph_num = graph_num
         self.graph = graph
+        self.graph.locations = locations
+        self.graph.location_name = default_location
 
         # create scrollable frame
         self.scrollable_frame = ctk.CTkScrollableFrame(self.handle)
@@ -494,15 +435,15 @@ class GraphTab:
             self.scrollable_frame,
             command=self.plot_graph_event,
             text="Plot Graph",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.plot_graph_button.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
         self.time_frame = ctk.CTkFrame(
             self.scrollable_frame,
-            fg_color=LIGHT_GREY,
+            fg_color=constants.LIGHT_GREY,
             border_width=1,
-            border_color=LIGHT_GREY,
+            border_color=constants.LIGHT_GREY,
         )
         self.time_frame.pack(side=ctk.TOP)
 
@@ -510,19 +451,19 @@ class GraphTab:
         self.time_mode_menu = DropdownAndLabel(
             self.time_frame,
             "Time Mode:",
-            TIME_MODES,
+            constants.TIME_MODES,
             self.change_time_mode_event,
-            DEFAULT_TIME_MODE,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_TIME_MODE,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.time_mode_menu.pack(side=ctk.TOP, padx=10, pady=(5, 10))
 
         # Frame for different time modes
         self.time_mode_frame = ctk.CTkFrame(
             self.time_frame,
-            width=SIDEBAR_BUTTON_WIDTH + 10,
+            width=constants.SIDEBAR_BUTTON_WIDTH + 10,
             height=90,
-            fg_color=DARK_GREY,
+            fg_color=constants.DARK_GREY,
         )
         self.time_mode_frame.pack(side=ctk.TOP, expand=True, pady=(0, 5))
         self.time_mode_frame.pack_propagate(False)
@@ -540,13 +481,13 @@ class GraphTab:
             self.calendar_frame,
             command=self.open_calendar_event,
             text="Open Calendar",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.open_calendar_button.pack(side=ctk.TOP, pady=10)
         # Create constructive frame for Calendar
         self.cal_frame = ctk.CTkFrame(
             self.calendar_frame,
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
             height=30,
         )
         self.cal_frame.pack(side=ctk.TOP, pady=(0, 10))
@@ -557,7 +498,7 @@ class GraphTab:
             dates=unique_dates,
             date_pattern="dd-mm-yyyy",
             justify="center",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
             bg="#1E6FBA",
             fg="yellow",
             disabledbackground="#1E6FBA",
@@ -597,10 +538,10 @@ class GraphTab:
         self.weekday_menu = DropdownAndLabel(
             self.weekday_frame,
             "Weekday",
-            list(WEEKDAYS.keys()),
+            list(constants.WEEKDAYS.keys()),
             self.change_weekday_event,
-            DEFAULT_WEEKDAY,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_WEEKDAY,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.weekday_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -622,10 +563,10 @@ class GraphTab:
         self.time_range_menu = DropdownAndLabel(
             self.time_range_frame,
             "From now to:",
-            TIME_RANGES,
+            constants.TIME_RANGES,
             self.change_weekday_event,
-            DEFAULT_TIME_RANGE,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_TIME_RANGE,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.time_range_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -636,10 +577,10 @@ class GraphTab:
         self.graph_mode_menu = DropdownAndLabel(
             self.scrollable_frame,
             "Graph Mode:",
-            list(GRAPH_MODES.keys()),
+            list(constants.GRAPH_MODES.keys()),
             self.change_graph_mode_event,
-            DEFAULT_GRAPH_MODE,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_GRAPH_MODE,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_mode_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -647,10 +588,10 @@ class GraphTab:
         self.graph_type_menu = DropdownAndLabel(
             self.scrollable_frame,
             "Graph Type:",
-            GRAPH_TYPES,
+            constants.GRAPH_TYPES,
             self.change_graph_type_event,
-            DEFAULT_GRAPH_TYPE,
-            SIDEBAR_BUTTON_WIDTH,
+            constants.DEFAULT_GRAPH_TYPE,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.graph_type_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -658,14 +599,12 @@ class GraphTab:
         self.location_menu = DropdownAndLabel(
             self.scrollable_frame,
             "Location:",
-            LOCATIONS,
+            list(self.graph.locations.keys()),
             self.change_location_event,
-            DEFAULT_LOCATION_ID,
-            SIDEBAR_BUTTON_WIDTH,
+            self.graph.location_name,
+            constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.location_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
-
-
 
     def plot_graph_event(self):
         print("plot single graph")
@@ -696,16 +635,20 @@ class GraphTab:
         print("Set time mode to: ", value)
         if value == "Calendar":
             self.calendar_frame.lift()
-            self.graph_mode_menu.set_menu_values(GRAPH_MODES, DEFAULT_GRAPH_MODE)
-            self.graph.graph_mode = DEFAULT_GRAPH_MODE
+            self.graph_mode_menu.set_menu_values(constants.GRAPH_MODES, constants.DEFAULT_GRAPH_MODE)
+            self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
         elif value == "Days of the week":
             self.weekday_frame.lift()
-            self.graph_mode_menu.set_menu_values(WEEKDAY_TIME_RANGE_GRAPH_MODES, DEFAULT_GRAPH_MODE)
-            self.graph.graph_mode = DEFAULT_GRAPH_MODE
+            self.graph_mode_menu.set_menu_values(
+                constants.WEEKDAY_TIME_RANGE_GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
+            )
+            self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
         elif value == "Time range":
             self.time_range_frame.lift()
-            self.graph_mode_menu.set_menu_values(WEEKDAY_TIME_RANGE_GRAPH_MODES, DEFAULT_GRAPH_MODE)
-            self.graph.graph_mode = DEFAULT_GRAPH_MODE
+            self.graph_mode_menu.set_menu_values(
+                constants.WEEKDAY_TIME_RANGE_GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
+            )
+            self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
 
         self.graph.time_mode = value
 
@@ -716,12 +659,10 @@ class GraphTab:
     def change_time_range_event(self, value):
         print("Set time range to: ", value)
         self.graph.time_range = value
-    
+
     def change_location_event(self, value):
         print("Set location to:", value)
-        self.graph.location_id = value
-        
-
+        self.graph.location_name = value
 
 
 class DropdownAndLabel(ctk.CTkFrame):
@@ -771,11 +712,11 @@ class MainFrameDatabase(ctk.CTkFrame):
         self, parent: DatabasePage, width=0, side=ctk.RIGHT, expand=False, fill=None
     ):
         super().__init__(parent)
-        self.col_interval = DEFAULT_COL_INTERVAL
+        self.col_interval = constants.DEFAULT_COL_INTERVAL
         self.col_active = False
 
         # create frame for textbox label and textbox
-        self.textbox_frame = ctk.CTkFrame(parent, width=TEXTBOX_WIDTH)
+        self.textbox_frame = ctk.CTkFrame(parent, width=constants.TEXTBOX_WIDTH)
         self.textbox_frame.pack(side=ctk.RIGHT, fill=ctk.Y, padx=(0, 10), pady=10)
         self.textbox_frame.pack_propagate(False)
         # create textbox label
@@ -783,7 +724,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             self.textbox_frame,
             font=ctk.CTkFont(size=15, weight="bold"),
             text="Database events",
-            width=TEXTBOX_WIDTH,
+            width=constants.TEXTBOX_WIDTH,
             height=20,
             fg_color="transparent",
             bg_color="transparent",
@@ -815,7 +756,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             self,
             font=ctk.CTkFont(size=20, weight="bold"),
             text="Active Settings",
-            width=TEXTBOX_WIDTH,
+            width=constants.TEXTBOX_WIDTH,
             height=20,
             fg_color="transparent",
             bg_color="transparent",
@@ -881,11 +822,11 @@ class MainFrameDatabase(ctk.CTkFrame):
 
 class SideBarDatabase(ctk.CTkFrame):
     def __init__(
-        self, parent: DatabasePage, main_frame: MainFrameDatabase, width=SIDEBAR_WIDTH
+        self, parent: DatabasePage, main_frame: MainFrameDatabase, width=constants.SIDEBAR_WIDTH
     ):
         super().__init__(parent, width=width, corner_radius=0)
         self.thread_id = 1  # Used for stopping data collection
-        self.col_interval = DEFAULT_COL_INTERVAL
+        self.col_interval = constants.DEFAULT_COL_INTERVAL
 
         self.parent = parent
         self.main_frame = main_frame
@@ -893,7 +834,9 @@ class SideBarDatabase(ctk.CTkFrame):
 
         try:
             db_handle = database.SQLiteDBManager()
-            self.unique_dates = db_handle.get_unique_dates(1)
+            self.unique_dates = db_handle.get_unique_dates(
+                constants.RETRIEVAL_LOCATIONS.get(constants.DEFAULT_RETRIEVAL_LOCATION)
+            )
         finally:
             db_handle.__del__()
 
@@ -914,7 +857,7 @@ class SideBarDatabase(ctk.CTkFrame):
             self,
             fg_color="#74bc50",
             hover_color="green",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
             command=self.start_collecting_data,
             text="Start data collection",
         )
@@ -929,7 +872,7 @@ class SideBarDatabase(ctk.CTkFrame):
             self,
             fg_color="#fe0101",
             hover_color="#ed6464",
-            width=SIDEBAR_BUTTON_WIDTH,
+            width=constants.SIDEBAR_BUTTON_WIDTH,
             command=self.stop_collecting_data,
             text="Stop data collection",
         )
@@ -950,10 +893,10 @@ class SideBarDatabase(ctk.CTkFrame):
         # Interval dropdown menu
         self.interval_option_menu = ctk.CTkOptionMenu(
             self,
-            values=list(DATA_COL_INTERVALS.keys()),
+            values=list(constants.DATA_COL_INTERVALS.keys()),
             command=self.change_interval_event,
-            variable=ctk.StringVar(value=DEFAULT_COL_INTERVAL),
-            width=SIDEBAR_BUTTON_WIDTH,
+            variable=ctk.StringVar(value=constants.DEFAULT_COL_INTERVAL),
+            width=constants.SIDEBAR_BUTTON_WIDTH,
         )
         self.interval_option_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
@@ -968,7 +911,7 @@ class SideBarDatabase(ctk.CTkFrame):
 
         deamon_thread = threading.Thread(
             target=self._get_data_in_intervals,
-            args=(DATA_COL_INTERVALS.get(self.col_interval), self.thread_id),
+            args=(constants.DATA_COL_INTERVALS.get(self.col_interval), self.thread_id),
         )
         deamon_thread.daemon = True
         deamon_thread.start()
@@ -1046,8 +989,8 @@ class CustomDateEntry(DateEntry):
     def configure_size(self):
         # Calculate the font size based on the width of the widget
         width = self.winfo_width()
-        font_size = int(width / DATE_ENTRY_FONT_SMALLNESS)
-        cal_font_size = int(width / CALENDAR_FONT_SMALLNESS)
+        font_size = int(width / constants.DATE_ENTRY_FONT_SMALLNESS)
+        cal_font_size = int(width / constants.CALENDAR_FONT_SMALLNESS)
 
         # Create a font object with the calculated size
         self.custom_font = ctk.CTkFont(
