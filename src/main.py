@@ -1,30 +1,36 @@
-import tkinter as tk
-from tkinter import ttk
 from tkcalendar import DateEntry
-
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
-from matplotlib.lines import Line2D
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
+import matplotlib.ticker as mticker
+import matplotlib.dates as mdates
+
 
 import datetime
-from typing import List, Callable, Any
-import time
+import pytz
 import threading
+import time
+from typing import Callable, Any
 
+
+import constants
 import database
 import database.helpers
 import retrieve_data
 from retrieve_data import Location
 import utils
-import constants
-
 
 
 class App(ctk.CTk):
-    def __init__(self, title, size=constants.WINDOW_START_SIZE, min_size=constants.WINDOW_MIN_SIZE):
+    def __init__(
+        self,
+        title,
+        size=constants.WINDOW_START_SIZE,
+        min_size=constants.WINDOW_MIN_SIZE,
+    ):
         super().__init__()
         self.title(title)
         positions = self._calculte_positions(size)
@@ -70,7 +76,7 @@ class GraphPage(ctk.CTkFrame):
         super().__init__(parent, corner_radius=0)
         self.pack(side="top", fill="both", expand="true")
 
-        self.all_graphs: List[Graph] = []
+        self.all_graphs: list[Graph] = []
         self.graph_amount = constants.DEFAULT_GRAPH_AMOUNT
 
         # Used to decide if graphs need to be rearranged
@@ -189,7 +195,9 @@ class SideBarGraph(ctk.CTkFrame):
                 self.locations = locations_dict
                 self.default_location = next(iter(locations_dict.keys()))
 
-            self.unique_dates = db_handle.get_unique_dates(self.locations.get(self.default_location))
+            self.unique_dates = db_handle.get_unique_dates(
+                self.locations.get(self.default_location)
+            )
         finally:
             if db_handle:
                 db_handle.__del__()
@@ -277,8 +285,8 @@ class Graph(ctk.CTkFrame):
         self.time_range: str = constants.DEFAULT_TIME_RANGE
 
         self.title: str = "Default title"
-        self.x_values: List = []
-        self.y_values: List = []
+        self.x_values: list = []
+        self.y_values: list = []
         self.x_label: str = "x label"
         self.y_label: str = "y label"
         self.element_color: str = element_color
@@ -310,21 +318,29 @@ class Graph(ctk.CTkFrame):
             #     self.line.set_data(self.x_values, self.y_values)
 
             self.line = self.ax.plot(
-                self.x_values, self.y_values, color=self.element_color, marker="o"
+                self.x_values,
+                self.y_values,
+                color=self.element_color,
+                # marker=".",
             )
+            self.ax.set_ylim(-0.0001, None)
 
         self.canvas.draw()
 
     def _get_graph_data(self) -> bool:
-        search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
-        search_end = utils.next_time(search_start, days=1)  # +1 day
+        # search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
+        # search_end = utils.next_time(search_start, days=1)  # +1 day
 
-        print(utils.get_formatted_finnish_time(search_start))
-        print(utils.get_formatted_finnish_time(search_end))
+        # print(utils.get_formatted_finnish_time(search_start))
+        # print(utils.get_formatted_finnish_time(search_end))
+
+        # search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
+        # search_start_dt = search_end_dt + utils.get_time_delta(self.time_range, "negative")
 
         try:
             db_handle = database.SQLiteDBManager()
             if self.time_mode == "Calendar":
+                search_start, search_end = self._get_search_range()
                 visitors = db_handle.get_data_by_mode(
                     self.locations.get(self.location_name),
                     search_start,
@@ -337,35 +353,86 @@ class Graph(ctk.CTkFrame):
                 )
             elif self.time_mode == "Days of the week":
                 visitors = db_handle.get_average_visitors(
-                    self.locations.get(self.location_name), constants.WEEKDAYS.get(self.weekday)
+                    self.locations.get(self.location_name),
+                    constants.WEEKDAYS.get(self.weekday),
                 )
 
                 # Korjaa! Voisi varmaan suoraan hakea tunnit eikä hakea epocheja,
-                # jotka muutetaan tunneiksi converr_for_day_graphilla
+                # jotka muutetaan tunneiksi convert_for_day_graphilla
                 timestamps = utils.day_epochs()
 
             elif self.time_mode == "Time range":
-                print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
+                time_r_interval = 60 * 60
+                search_start, search_end = self._get_search_range()
+                visitors = db_handle.get_data_by_mode(
+                    self.locations.get(self.location_name),
+                    search_start,
+                    search_end,
+                    constants.GRAPH_MODES.get(self.graph_mode),
+                    60 * 60,
+                )
+                timestamps = database.helpers.calculate_timestamps(
+                    search_start, search_end, 60 * 60
+                )
         finally:
             db_handle.__del__()
 
-        self.x_values, self.y_values = utils.convert_for_day_graph(timestamps, visitors)
+        if self.time_mode == "Time range":
+            self.x_values = utils.epochs_to_format(timestamps, "datetime")
+            self.y_values = utils.nones_to_zeros(visitors)
+        else:
+            self.x_values, self.y_values = utils.convert_for_day_graph(
+                timestamps, visitors
+            )
 
         self._set_title_labels(timestamps)
 
-        # # Korjaa! Lisää check, että oikean tyyppistä dataa.
-        # # for time_stamp in data[0]:
-        # for time_stamp in timestamps:
-        #     if time_stamp is not None:
-        #         found_date = time_stamp
-        #         break
-        # date = utils.get_finnish_date(found_date)
-        # day = utils.get_finnish_day(found_date)
-        # location_name = "FUN Oulu Ritaharju"  # Korjaa! Hae itse.
+    def _get_search_range(self) -> tuple[int, int]:
+        search_start: int
+        search_end: int
 
-        # self.title = f"{location_name}, {day}, {date}"
-        # self.x_label = "Hour"
-        # self.y_label = self.graph_mode
+        print("Mode:", self.time_mode)
+        if self.time_mode == "Calendar":
+            search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
+            search_end = utils.next_time(search_start, days=1)  # +1 day
+        elif self.time_mode == "Time range":
+            print("Time range:", self.time_range)
+
+            search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
+            search_end = utils.datetime_to_epoch(search_end_dt)
+
+            time_dif_td = utils.get_time_delta(self.time_range, "negative")
+            if time_dif_td:
+                search_start_dt = search_end_dt + time_dif_td
+                search_start = utils.datetime_to_epoch(search_start_dt)
+
+                print(search_start_dt)
+            else:
+                search_start = self._get_all_search_start()
+
+            print(search_end_dt)
+        else:
+            print("SHOULD NOT GET HERE!")
+
+        print("Search start:", utils.get_formatted_finnish_time(search_start))
+        print("Search end:  ", utils.get_formatted_finnish_time(search_end))
+
+        return search_start, search_end
+
+    def _get_all_search_start(self) -> int | None:
+        try:
+            db_handle = database.SQLiteDBManager()
+            search_start = db_handle.get_first_time(
+                self.locations.get(self.location_name)
+            )
+        finally:
+            db_handle.__del__()
+
+        search_start_dt = utils.top_of_the_hour(
+            utils.get_localized_datetime(search_start)
+        )
+
+        return utils.datetime_to_epoch(search_start_dt)
 
     def _graph_settings(self):
         self.ax.clear()
@@ -377,8 +444,46 @@ class Graph(ctk.CTkFrame):
             color=self.axis_colors, labelcolor=self.axis_colors
         )
         self.ax.xaxis.set_tick_params(
-            color=self.axis_colors, labelcolor=self.axis_colors
+            which="both",
+            color=self.axis_colors,
+            labelcolor=self.axis_colors,
         )
+
+        if self.time_mode == "Time range":
+            locator = mdates.AutoDateLocator(tz=constants.DEFAULT_TIMEZONE)
+            formatter = mdates.ConciseDateFormatter(
+                locator, tz=constants.DEFAULT_TIMEZONE
+            )
+            formatter.formats = [
+                "%y",  # ticks are mostly years
+                "%b",  # ticks are mostly months
+                "%a, %#d.",  # ticks are mostly days
+                "%H:%M",  # hrs
+                "%H:%M",  # min
+                "%S.%f",
+            ]  # secs
+
+            formatter.zero_formats = [
+                "",
+                "%b %Y",
+                "%b '%y",
+                "%a, %#d. %b",
+                "%H:%M",
+                "%H:%M",
+            ]
+
+            formatter.offset_formats = [
+                "%Y",
+                "%Y",
+                "%b %Y",
+                "%d %b %Y",
+                "%d %b %Y",
+                "%d %b %Y %H:%M",
+            ]
+
+            self.ax.xaxis.set_major_locator(locator)
+            self.ax.xaxis.set_major_formatter(formatter)
+
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
 
@@ -402,6 +507,9 @@ class Graph(ctk.CTkFrame):
             self.y_label = self.graph_mode
 
         elif self.time_mode == "Time range":
+            self.title = f"{self.location_name}"
+            self.x_label = ""
+            self.y_label = self.graph_mode
             print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
 
 
@@ -412,7 +520,7 @@ class GraphTab:
         tab_name: str,
         graph_page: GraphPage,
         graph_num: int,
-        unique_dates: List[int],
+        unique_dates: list[int],
         graph: Graph,
         locations: dict[str, int],
         default_location: str,
@@ -564,7 +672,7 @@ class GraphTab:
             self.time_range_frame,
             "From now to:",
             constants.TIME_RANGES,
-            self.change_weekday_event,
+            self.change_time_range_event,
             constants.DEFAULT_TIME_RANGE,
             constants.SIDEBAR_BUTTON_WIDTH,
         )
@@ -635,20 +743,39 @@ class GraphTab:
         print("Set time mode to: ", value)
         if value == "Calendar":
             self.calendar_frame.lift()
-            self.graph_mode_menu.set_menu_values(constants.GRAPH_MODES, constants.DEFAULT_GRAPH_MODE)
+            self.graph_mode_menu.set_menu_values(
+                constants.GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
+            )
             self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
+
+            self.graph_type_menu.set_menu_values(
+                constants.GRAPH_TYPES, constants.DEFAULT_GRAPH_TYPE
+            )
+            self.graph.graph_type = constants.DEFAULT_GRAPH_TYPE
         elif value == "Days of the week":
             self.weekday_frame.lift()
             self.graph_mode_menu.set_menu_values(
                 constants.WEEKDAY_TIME_RANGE_GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
             )
             self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
+
+            self.graph_type_menu.set_menu_values(
+                constants.GRAPH_TYPES, constants.DEFAULT_GRAPH_TYPE
+            )
+            self.graph.graph_type = constants.DEFAULT_GRAPH_TYPE
+
         elif value == "Time range":
             self.time_range_frame.lift()
+
             self.graph_mode_menu.set_menu_values(
                 constants.WEEKDAY_TIME_RANGE_GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
             )
             self.graph.graph_mode = constants.DEFAULT_GRAPH_MODE
+
+            self.graph_type_menu.set_menu_values(
+                constants.TIME_RANGE_GRAPH_TYPES, constants.DEFAULT_TR_GRAPH_TYPE
+            )
+            self.graph.graph_type = constants.DEFAULT_TR_GRAPH_TYPE
 
         self.graph.time_mode = value
 
@@ -787,20 +914,6 @@ class MainFrameDatabase(ctk.CTkFrame):
         )
         self.interval_label.pack(side=ctk.TOP, pady=(10, 10))
 
-        # self.test_button = ctk.CTkButton(
-        #     self,
-        #     fg_color="#74bc50",
-        #     hover_color="#83bab1",
-        #     width=SIDEBAR_BUTTON_WIDTH,
-        #     command=self.test_update,
-        #     text="Start data collection",
-        # )
-        # self.test_button.pack(side="left")
-
-    # def test_update(self):
-    #     print("PARENT: ", self.parent.collection_interval)
-    #     print("COLLECTING: ", self.parent.data_collection_active)
-
     def write_to_textbox(self, text: str):
         self.textbox.insert("0.0", text)
 
@@ -822,7 +935,10 @@ class MainFrameDatabase(ctk.CTkFrame):
 
 class SideBarDatabase(ctk.CTkFrame):
     def __init__(
-        self, parent: DatabasePage, main_frame: MainFrameDatabase, width=constants.SIDEBAR_WIDTH
+        self,
+        parent: DatabasePage,
+        main_frame: MainFrameDatabase,
+        width=constants.SIDEBAR_WIDTH,
     ):
         super().__init__(parent, width=width, corner_radius=0)
         self.thread_id = 1  # Used for stopping data collection
@@ -978,7 +1094,7 @@ class SideBarDatabase(ctk.CTkFrame):
 
 
 class CustomDateEntry(DateEntry):
-    def __init__(self, master=None, dates: List[str] = None, **kw):
+    def __init__(self, master=None, dates: list[str] = None, **kw):
         if dates is None:
             dates = []
         super().__init__(master, **kw)
