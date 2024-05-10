@@ -306,7 +306,7 @@ class SQLiteDBManager:
 
     def _get_days(self, location_id: int, weekday: str) -> List[tuple[int, int]]:
         """
-        Calculates upper (start of first target weekday) and lower limit (end of last tar)
+        Calculates upper (start of first target weekday) and lower limit (end of last target)
 
         """
         pstmt_first: str = (
@@ -351,6 +351,30 @@ class SQLiteDBManager:
             return True
         else:
             return False
+        
+    def get_first_time(self, location_id: int) -> int | None:
+        """
+        Returns the first epoch timestamp in visitors table.
+        """
+
+        if not helpers.are_ints(location_id):
+            raise TypeError(
+                "Argument 'location_id' must be an integer."
+            )
+        
+        pstmt = """SELECT epoch_timestamp 
+        FROM visitor_activity 
+        WHERE location_id = ? 
+        ORDER BY ROWID ASC LIMIT 1"""
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            cursor.execute(pstmt, (location_id,))
+            result = cursor.fetchone()
+        
+        if result:
+            result = result[0]
+
+        return result
 
     def get_locations_dict(self) -> dict[str:int]:
         locations = {}
