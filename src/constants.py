@@ -1,4 +1,5 @@
 import datetime
+import pytz
 
 WINDOW_START_SIZE = (1100, 600)
 WINDOW_MIN_SIZE = (850, 550)
@@ -24,9 +25,16 @@ GRAPH_MODES = {
 WEEKDAY_TIME_RANGE_GRAPH_MODES = {"Visitors": "avg"}
 DEFAULT_GRAPH_MODE = "Visitors"
 
+
 GRAPH_TYPES = ["Bar Graph", "Line Graph"]
 DEFAULT_GRAPH_TYPE = "Bar Graph"
+
+TIME_RANGE_GRAPH_TYPES = ["Line Graph"]
+DEFAULT_TR_GRAPH_TYPE = "Line Graph"
+
 DEFAULT_GRAPH_DATE = datetime.datetime.now().strftime("%d-%m-%Y")
+
+DEFAULT_TIMEZONE = pytz.timezone("Europe/Helsinki")
 
 TEXTBOX_WIDTH = 350
 
@@ -53,7 +61,7 @@ WEEKDAYS = {
 DEFAULT_WEEKDAY = "Monday"
 
 TIME_RANGES = ["48 hours", "7 days", "1 month", "3 months", "6 months", "1 year", "ALL"]
-DEFAULT_TIME_RANGE = "1 month"
+DEFAULT_TIME_RANGE = "48 hours"
 
 NO_LOCATIONS = {"No locations": 0}
 DEFAULT_LOCATION = next(iter(NO_LOCATIONS.keys()))
