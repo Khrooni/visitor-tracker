@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import pytz
 import time
 import calendar
@@ -13,6 +14,13 @@ def convert_for_day_graph(
     convert y_values (visitor_amounts) that are None to int 0.
     """
     return epochs_to_format(x_values, "hour"), nones_to_zeros(y_values)
+
+
+def top_of_the_hour(dt: datetime, tzinfo=pytz.timezone("Europe/Helsinki")) -> datetime:
+    """
+    Returns datetime object with start of closest previous hour.
+    """
+    return reset_dt_timezone(dt.replace(minute=0, second=0, microsecond=0), tzinfo)
 
 
 def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
@@ -37,6 +45,7 @@ def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
         "time": get_finnish_time,
         "date": get_finnish_date,
         "formatted_time": get_formatted_finnish_time,
+        "datetime": get_localized_datetime
     }
 
     format_function: Callable[[int], str] = format_functions.get(mode)
@@ -48,15 +57,16 @@ def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
 
     return formatted_list
 
+
 def day_epochs() -> list[int]:
     """
-    Returns a list of epochs with values in interval 1 hour from 
+    Returns a list of epochs with values in interval 1 hour from
     December 12, 2024 00:00:00 GMT+02:00 to December 12, 2024 23:00:00 GMT+02:00.
     """
 
     epochs = []
 
-    start_epoch = 1733954400 # Thursday, December 12, 2024 00:00:00 GMT+02:00
+    start_epoch = 1733954400  # Thursday, December 12, 2024 00:00:00 GMT+02:00
 
     hour = 60 * 60
 
@@ -185,6 +195,37 @@ def next_time(
     next_dt = reset_dt_timezone(next_dt, tzinfo)
 
     return datetime_to_epoch(next_dt)
+
+
+def get_time_delta(time_str: str, direction="positive") -> relativedelta | None:
+    """
+    If direction positive -> value = abs(value). If direction negative ->
+    value = -abs(value). Else keep original.
+    """
+    if time_str == "ALL":
+        return None
+
+    value, unit = time_str.split()
+    value = int(value)
+
+    if direction == "positive":
+        value = abs(value)
+    elif direction == "negative":
+        value = -abs(value)
+
+    if unit == "hours":
+        return relativedelta(hours=value)
+    elif unit == "days":
+        return relativedelta(days=value)
+    elif unit == "month" or unit == "months":
+        return relativedelta(months=value)
+    elif unit == "year":
+        return relativedelta(years=value)
+    else:
+        raise ValueError("Invalid time unit")
+    
+def year_change(dt1: datetime, dt2: datetime) -> bool:
+    return dt1.year != dt2.year
 
 
 def reset_dt_timezone(
