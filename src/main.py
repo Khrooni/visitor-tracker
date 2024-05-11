@@ -9,7 +9,8 @@ import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 
 
-import datetime
+# import datetime
+from datetime import datetime, date
 import pytz
 import threading
 import time
@@ -258,8 +259,6 @@ class SideBarGraph(ctk.CTkFrame):
         print("PLOTTING bars...")
         self.parent.draw_all_graphs()
 
-        # self.main_frame.set_figure_ax(self.graph_amount)
-
     def change_graph_amount_event(self, value):
         print("Amount")
         print("Amount: ", value)
@@ -299,7 +298,6 @@ class Graph(ctk.CTkFrame):
             figsize=(20, 20), facecolor=self.facecolor, layout="constrained"
         )
         self.ax = self.fig.add_subplot()
-        self.line: Line2D = None
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.draw()
@@ -308,16 +306,11 @@ class Graph(ctk.CTkFrame):
 
     def draw_graph(self):
         self._get_graph_data()
-        self._graph_settings()
+        self._set_graph_settings()
         if self.graph_type.lower() == "bar graph":
             self.ax.bar(self.x_values, self.y_values, color=self.element_color)
         elif self.graph_type.lower() == "line graph":
-            # if self.line is None:
-            #     self.line = self.ax.plot(self.x_values, self.y_values)
-            # else:
-            #     self.line.set_data(self.x_values, self.y_values)
-
-            self.line = self.ax.plot(
+            self.ax.plot(
                 self.x_values,
                 self.y_values,
                 color=self.element_color,
@@ -328,15 +321,6 @@ class Graph(ctk.CTkFrame):
         self.canvas.draw()
 
     def _get_graph_data(self) -> bool:
-        # search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
-        # search_end = utils.next_time(search_start, days=1)  # +1 day
-
-        # print(utils.get_formatted_finnish_time(search_start))
-        # print(utils.get_formatted_finnish_time(search_end))
-
-        # search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
-        # search_start_dt = search_end_dt + utils.get_time_delta(self.time_range, "negative")
-
         try:
             db_handle = database.SQLiteDBManager()
             if self.time_mode == "Calendar":
@@ -377,6 +361,12 @@ class Graph(ctk.CTkFrame):
         finally:
             db_handle.__del__()
 
+        # self.x_values = utils.epochs_to_format(timestamps, "datetime")
+        # self.y_values = utils.nones_to_zeros(visitors)
+
+        # self._set_title_labels()
+        self._set_title_labels(timestamps)
+
         if self.time_mode == "Time range":
             self.x_values = utils.epochs_to_format(timestamps, "datetime")
             self.y_values = utils.nones_to_zeros(visitors)
@@ -384,8 +374,6 @@ class Graph(ctk.CTkFrame):
             self.x_values, self.y_values = utils.convert_for_day_graph(
                 timestamps, visitors
             )
-
-        self._set_title_labels(timestamps)
 
     def _get_search_range(self) -> tuple[int, int]:
         search_start: int
@@ -398,7 +386,7 @@ class Graph(ctk.CTkFrame):
         elif self.time_mode == "Time range":
             print("Time range:", self.time_range)
 
-            search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
+            search_end_dt = utils.top_of_the_hour(datetime.now())
             search_end = utils.datetime_to_epoch(search_end_dt)
 
             time_dif_td = utils.get_time_delta(self.time_range, "negative")
@@ -434,7 +422,7 @@ class Graph(ctk.CTkFrame):
 
         return utils.datetime_to_epoch(search_start_dt)
 
-    def _graph_settings(self):
+    def _set_graph_settings(self):
         self.ax.clear()
         self.ax.set_facecolor(self.axis_colors)
         self.ax.set_title(self.title, color=self.axis_colors)
@@ -454,6 +442,7 @@ class Graph(ctk.CTkFrame):
             formatter = mdates.ConciseDateFormatter(
                 locator, tz=constants.DEFAULT_TIMEZONE
             )
+            # '%#d' only works with windows. '%-d' on linux
             formatter.formats = [
                 "%y",  # ticks are mostly years
                 "%b",  # ticks are mostly months
@@ -467,7 +456,7 @@ class Graph(ctk.CTkFrame):
                 "",
                 "%b %Y",
                 "%b '%y",
-                "%a, %#d. %b",
+                "%a, %#d. %b",  # '%#d' only works with windows. '%-d' on linux
                 "%H:%M",
                 "%H:%M",
             ]
@@ -483,6 +472,11 @@ class Graph(ctk.CTkFrame):
 
             self.ax.xaxis.set_major_locator(locator)
             self.ax.xaxis.set_major_formatter(formatter)
+        # else:
+        #     locator = mdates.HourLocator(byhour=range(24),tz=constants.DEFAULT_TIMEZONE)
+        #     # '%#H' only works on windows
+        #     formatter = mdates.DateFormatter("%#H", tz=constants.DEFAULT_TIMEZONE
+        #     )
 
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
@@ -510,7 +504,29 @@ class Graph(ctk.CTkFrame):
             self.title = f"{self.location_name}"
             self.x_label = ""
             self.y_label = self.graph_mode
-            print("NOT IMPLEMENTED YET. ERROR PROBABLY!")
+
+    # def _set_title_labels(self):
+    #     if self.time_mode == "Calendar":
+    #         for dt in self.x_values:
+    #             if isinstance(dt, datetime):
+    #                 found_dt = dt
+    #                 break
+    #         # Korjaa! Lisää check, että oikean tyyppistä dataa.
+    #         date = found_dt.strftime("%d-%m-%Y")
+    #         day = found_dt.strftime("%A")
+
+    #         self.title = f"{self.location_name}, {day}, {date}"
+    #         self.x_label = "Hour"
+    #         self.y_label = self.graph_mode
+    #     elif self.time_mode == "Days of the week":
+    #         self.title = f"{self.location_name}, {self.weekday}"
+    #         self.x_label = "Hour"
+    #         self.y_label = self.graph_mode
+
+    #     elif self.time_mode == "Time range":
+    #         self.title = f"{self.location_name}"
+    #         self.x_label = ""
+    #         self.y_label = self.graph_mode
 
 
 class GraphTab:
@@ -620,6 +636,8 @@ class GraphTab:
             cursor="hand2",
             background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
+            # mindate = first_date,
+            maxdate=date.today(),
         )
         self.cal.highlight_dates()
         self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
@@ -1094,10 +1112,30 @@ class SideBarDatabase(ctk.CTkFrame):
 
 
 class CustomDateEntry(DateEntry):
-    def __init__(self, master=None, dates: list[str] = None, **kw):
+    """
+    Note: showothermonthdays=False on default to avoid bug caused by highlighting
+    dates outside current selected month. Creating a calevent for a date in the calendar
+    changes the 'style' of date from ('normal'/'normal_om' or 'we'/'we_om') to 'tag_%s' (tag_name).
+    - DateEntry -> Calendar -> Calendar._on_click()
+    - tkcalendar.calendar_.py -> Calendar._on_click
+
+
+        self._calendar.calevent_create(dt, "Has Data", tag) creates a calevent that changes style of the date
+
+        Following check fails because style is always 'tag_%s' (tag_name)
+    
+        if style in ['normal_om.%s.TLabel' % self._style_prefixe, 'we_om.%s.TLabel' % self._style_prefixe]:
+            if label in self._calendar[0]:
+                self._prev_month()
+            else:
+                self._next_month()
+    """
+    def __init__(
+        self, master=None, dates: list[str] = None, showothermonthdays=False, **kw
+    ):
         if dates is None:
             dates = []
-        super().__init__(master, **kw)
+        super().__init__(master, showothermonthdays=showothermonthdays, **kw)
         self.dates = dates
         self.configure_size()
         self.bind("<Configure>", self.update_on_resize)  # Bind to the Configure event
@@ -1121,10 +1159,12 @@ class CustomDateEntry(DateEntry):
         self._calendar.configure(font=self.custom_cal_font)
 
     def highlight_dates(self):
+        tag_name = "Data"
         for date in self.dates:
-            dt = datetime.datetime.strptime(date, "%d-%m-%Y")
-            self._calendar.calevent_create(dt, date, date)
-            self._calendar.tag_config(date, background="#19a84c", foreground="white")
+            dt = datetime.strptime(date, "%d-%m-%Y")
+            self._calendar.calevent_create(dt, "Has Data", tag_name)
+
+        self._calendar.tag_config(tag_name, background="#19a84c", foreground="white")
 
     def update_on_resize(self, event):
         self.configure_size()
