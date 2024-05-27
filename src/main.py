@@ -422,6 +422,20 @@ class Graph(ctk.CTkFrame):
 
         return utils.datetime_to_epoch(search_start_dt)
 
+    def get_first(self) -> datetime | None:
+        try:
+            db_handle = database.SQLiteDBManager()
+            search_start = db_handle.get_first_time(
+                self.locations.get(self.location_name)
+            )
+        finally:
+            db_handle.__del__()
+
+        if search_start:
+            search_start = utils.get_localized_datetime(search_start)
+
+        return search_start
+
     def _set_graph_settings(self):
         self.ax.clear()
         self.ax.set_facecolor(self.axis_colors)
@@ -546,7 +560,7 @@ class GraphTab:
 
         self.graph_page = graph_page
         self.graph_num = graph_num
-        self.graph = graph
+        self.graph: Graph = graph
         self.graph.locations = locations
         self.graph.location_name = default_location
 
@@ -616,6 +630,7 @@ class GraphTab:
         )
         self.cal_frame.pack(side=ctk.TOP, pady=(0, 10))
         self.cal_frame.pack_propagate(False)
+
         # Create Calendar
         self.cal = CustomDateEntry(
             self.cal_frame,
@@ -636,7 +651,7 @@ class GraphTab:
             cursor="hand2",
             background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
-            # mindate = first_date,
+            mindate=self.graph.get_first(),
             maxdate=date.today(),
         )
         self.cal.highlight_dates()
@@ -688,7 +703,8 @@ class GraphTab:
         # Time range dropdown menu and label
         self.time_range_menu = DropdownAndLabel(
             self.time_range_frame,
-            "From now to:",
+            # "From now to:",
+            "Last:",
             constants.TIME_RANGES,
             self.change_time_range_event,
             constants.DEFAULT_TIME_RANGE,
@@ -808,6 +824,9 @@ class GraphTab:
     def change_location_event(self, value):
         print("Set location to:", value)
         self.graph.location_name = value
+        print("Set Calendar minumum date")
+        # Change Calendar mindate to match selected location
+        self.cal.configure(mindate=self.graph.get_first())
 
 
 class DropdownAndLabel(ctk.CTkFrame):
@@ -1123,13 +1142,14 @@ class CustomDateEntry(DateEntry):
         self._calendar.calevent_create(dt, "Has Data", tag) creates a calevent that changes style of the date
 
         Following check fails because style is always 'tag_%s' (tag_name)
-    
+
         if style in ['normal_om.%s.TLabel' % self._style_prefixe, 'we_om.%s.TLabel' % self._style_prefixe]:
             if label in self._calendar[0]:
                 self._prev_month()
             else:
                 self._next_month()
     """
+
     def __init__(
         self, master=None, dates: list[str] = None, showothermonthdays=False, **kw
     ):
@@ -1139,6 +1159,29 @@ class CustomDateEntry(DateEntry):
         self.dates = dates
         self.configure_size()
         self.bind("<Configure>", self.update_on_resize)  # Bind to the Configure event
+
+    def drop_down(self):
+        """Display or withdraw the drop-down calendar depending on its current state."""
+        if self._calendar.winfo_ismapped():
+            self._top_cal.withdraw()
+        else:
+            self._validate_date()
+            date = self.parse_date(self.get())
+            x = self.winfo_rootx()
+            y = self.winfo_rooty() + self.winfo_height()
+            if self.winfo_toplevel().attributes("-topmost"):
+                self._top_cal.attributes("-topmost", True)
+            else:
+                self._top_cal.attributes("-topmost", False)
+            # - patch begin: Stop calendar from opeing outside screen.
+            current_screen_heigth = utils.get_monitor_from_coord(x, y).height
+            if y + self._top_cal.winfo_height() > current_screen_heigth - 70:
+                y = self.winfo_rooty() - self._top_cal.winfo_height()
+            # - patch end
+            self._top_cal.geometry("+%i+%i" % (x, y))
+            self._top_cal.deiconify()
+            self._calendar.focus_set()
+            self._calendar.selection_set(date)
 
     def configure_size(self):
         # Calculate the font size based on the width of the widget
