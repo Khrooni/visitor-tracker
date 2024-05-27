@@ -4,6 +4,19 @@ import pytz
 import time
 import calendar
 from typing import Callable, Any
+import screeninfo
+
+
+def get_monitor_from_coord(x: int, y: int) -> screeninfo.Monitor:
+    monitors = screeninfo.get_monitors()
+
+    for monitor in reversed(monitors):
+        if (
+            monitor.x <= x <= monitor.width + monitor.x
+            and monitor.y <= y <= monitor.height + monitor.y
+        ):
+            return monitor
+    return monitors[0]
 
 
 def convert_for_day_graph(
@@ -30,7 +43,8 @@ def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
     Parameters:
     - epochs (list[int]): A list of epoch timestamps to be formatted.
     - mode (str): The mode specifying the desired formatting type.
-                  Valid modes are 'hour', 'day', 'time', 'date', and 'formatted_time'.
+                  Valid modes are 'hour', 'day', 'time', 'date', 'formatted_time'
+                  and 'datetime'.
 
     Returns:
     - list[str]: A list of formatted strings corresponding to the epochs based on the selected mode.
@@ -45,7 +59,7 @@ def epochs_to_format(epochs: list[int], mode: str) -> list[str]:
         "time": get_finnish_time,
         "date": get_finnish_date,
         "formatted_time": get_formatted_finnish_time,
-        "datetime": get_localized_datetime
+        "datetime": get_localized_datetime,
     }
 
     format_function: Callable[[int], str] = format_functions.get(mode)
@@ -223,7 +237,8 @@ def get_time_delta(time_str: str, direction="positive") -> relativedelta | None:
         return relativedelta(years=value)
     else:
         raise ValueError("Invalid time unit")
-    
+
+
 def year_change(dt1: datetime, dt2: datetime) -> bool:
     return dt1.year != dt2.year
 
