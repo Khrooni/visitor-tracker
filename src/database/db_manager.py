@@ -352,23 +352,32 @@ class SQLiteDBManager:
         else:
             return False
         
-    def get_first_time(self, location_id: int) -> int | None:
+    def get_first_time(self, location_id: int | None = None) -> int | None:
         """
-        Returns the first epoch timestamp in visitors table.
+        Returns the first epoch timestamp in visitors table with matching
+        location_id. If no location_id is given get first epoch timestamp.
         """
 
-        if not helpers.are_ints(location_id):
+        if not helpers.are_ints(location_id) and location_id is not None:
             raise TypeError(
-                "Argument 'location_id' must be an integer."
+                "Argument 'location_id' must be an integer or None."
             )
         
+
         pstmt = """SELECT epoch_timestamp 
         FROM visitor_activity 
         WHERE location_id = ? 
         ORDER BY ROWID ASC LIMIT 1"""
 
+        stmt = """SELECT epoch_timestamp 
+        FROM visitor_activity
+        ORDER BY ROWID ASC LIMIT 1"""
+
         with contextlib.closing(self.conn.cursor()) as cursor:
-            cursor.execute(pstmt, (location_id,))
+            if location_id:
+                cursor.execute(pstmt, (location_id,))
+            else:
+                cursor.execute(stmt)
             result = cursor.fetchone()
         
         if result:
