@@ -15,3 +15,5 @@ tests/test_empty.db
 tests/complex_example.py
 tests/test.py
 tests/test2.py
+src/test_funcs.py
+src/test_nor.py
