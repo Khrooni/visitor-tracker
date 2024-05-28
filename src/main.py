@@ -11,6 +11,7 @@ import matplotlib.dates as mdates
 
 # import datetime
 from datetime import datetime, date
+import numpy as np
 import pytz
 import threading
 import time
@@ -120,7 +121,7 @@ class GraphPage(ctk.CTkFrame):
             self._arrange_graphs()
 
         for graph_num in range(self.graph_amount):
-            self.all_graphs[graph_num].draw_graph()
+            self.all_graphs[graph_num].draw_graph(self.graph_amount)
 
         self.active_graph_amount = self.graph_amount
 
@@ -128,7 +129,9 @@ class GraphPage(ctk.CTkFrame):
         if self.graph_amount != self.active_graph_amount:
             self._arrange_graphs()
 
-        self.all_graphs[graph_num].draw_graph()
+        self.graph_amount
+
+        self.all_graphs[graph_num].draw_graph(self.graph_amount)
 
         self.active_graph_amount = self.graph_amount
 
@@ -256,6 +259,7 @@ class SideBarGraph(ctk.CTkFrame):
             )
 
     def plot_all_button_event(self):
+        print("width:", self.parent.winfo_screenwidth())
         print("PLOTTING bars...")
         self.parent.draw_all_graphs()
 
@@ -304,11 +308,24 @@ class Graph(ctk.CTkFrame):
         self.canvas.get_tk_widget().pack(padx=padx, pady=pady)
         # self.canvas.get_tk_widget().configure()
 
-    def draw_graph(self):
+    def draw_graph(self, graph_amount: int = 1):
+        """If graph amount 4 only every other values is used for bar graph"""
         self._get_graph_data()
-        self._set_graph_settings()
+        self._set_graph_settings(graph_amount)
+
         if self.graph_type.lower() == "bar graph":
-            self.ax.bar(self.x_values, self.y_values, color=self.element_color)
+
+            width = np.diff(self.x_values).min() * 0.80
+
+            self.ax.bar(
+                self.x_values,
+                self.y_values,
+                color=self.element_color,
+                align="center",
+                width=width,
+            )
+            self.ax.xaxis_date()
+
         elif self.graph_type.lower() == "line graph":
             self.ax.plot(
                 self.x_values,
@@ -361,19 +378,10 @@ class Graph(ctk.CTkFrame):
         finally:
             db_handle.__del__()
 
-        # self.x_values = utils.epochs_to_format(timestamps, "datetime")
-        # self.y_values = utils.nones_to_zeros(visitors)
-
-        # self._set_title_labels()
         self._set_title_labels(timestamps)
 
-        if self.time_mode == "Time range":
-            self.x_values = utils.epochs_to_format(timestamps, "datetime")
-            self.y_values = utils.nones_to_zeros(visitors)
-        else:
-            self.x_values, self.y_values = utils.convert_for_day_graph(
-                timestamps, visitors
-            )
+        self.x_values = utils.epochs_to_format(timestamps, "datetime")
+        self.y_values = utils.nones_to_zeros(visitors)
 
     def _get_search_range(self) -> tuple[int, int]:
         search_start: int
@@ -436,7 +444,7 @@ class Graph(ctk.CTkFrame):
 
         return search_start
 
-    def _set_graph_settings(self):
+    def _set_graph_settings(self, graph_amount: int):
         self.ax.clear()
         self.ax.set_facecolor(self.axis_colors)
         self.ax.set_title(self.title, color=self.axis_colors)
@@ -486,11 +494,24 @@ class Graph(ctk.CTkFrame):
 
             self.ax.xaxis.set_major_locator(locator)
             self.ax.xaxis.set_major_formatter(formatter)
-        # else:
-        #     locator = mdates.HourLocator(byhour=range(24),tz=constants.DEFAULT_TIMEZONE)
-        #     # '%#H' only works on windows
-        #     formatter = mdates.DateFormatter("%#H", tz=constants.DEFAULT_TIMEZONE
-        #     )
+        else:
+            interval = 1
+
+            # x-values go over each other if 4 graphs on screen. Figures are too small.
+            if graph_amount == 4:
+                interval = 2
+
+            locator = mdates.HourLocator(
+                byhour=range(24), interval=interval, tz=constants.DEFAULT_TIMEZONE
+            )
+            # '%#H' only works on windows
+            formatter = mdates.DateFormatter("%#H", tz=constants.DEFAULT_TIMEZONE)
+
+            self.ax.xaxis.set_major_locator(locator)
+            self.ax.xaxis.set_major_formatter(formatter)
+
+            lower_limit, upper_limit = self.get_limits(self.x_values)
+            self.ax.set_xlim(lower_limit, upper_limit)
 
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
@@ -519,28 +540,52 @@ class Graph(ctk.CTkFrame):
             self.x_label = ""
             self.y_label = self.graph_mode
 
-    # def _set_title_labels(self):
-    #     if self.time_mode == "Calendar":
-    #         for dt in self.x_values:
-    #             if isinstance(dt, datetime):
-    #                 found_dt = dt
-    #                 break
-    #         # Korjaa! Lisää check, että oikean tyyppistä dataa.
-    #         date = found_dt.strftime("%d-%m-%Y")
-    #         day = found_dt.strftime("%A")
+    def get_limits(self, datetimes: list[datetime]) -> tuple[datetime, datetime]:
+        """
+        Calculate and return the lower and upper limits based on a list of datetime objects.
 
-    #         self.title = f"{self.location_name}, {day}, {date}"
-    #         self.x_label = "Hour"
-    #         self.y_label = self.graph_mode
-    #     elif self.time_mode == "Days of the week":
-    #         self.title = f"{self.location_name}, {self.weekday}"
-    #         self.x_label = "Hour"
-    #         self.y_label = self.graph_mode
+        The function computes the difference between the first two datetime objects in the list.
+        It then uses this difference to calculate a lower limit by subtracting 0.75% of the difference
+        from the first datetime, and an upper limit by adding 0.75% of the difference to the last datetime.
 
-    #     elif self.time_mode == "Time range":
-    #         self.title = f"{self.location_name}"
-    #         self.x_label = ""
-    #         self.y_label = self.graph_mode
+        Parameters:
+        ---
+        datetimes : list[datetime]
+            A list of datetime objects. The list must contain at least two elements.
+            The datetime should be in chronological order, starting from the earliest
+            to the latest.
+
+        Returns:
+        ---
+        tuple[datetime, datetime]
+            A tuple containing the calculated lower and upper limits as datetime objects.
+
+        Raises:
+        ---
+        ValueError
+            If the list contains fewer than two datetime objects.
+        """
+        if len(datetimes) >= 2:
+            difference = (
+                datetimes[1] - datetimes[0]
+                if datetimes[0] < datetimes[1]
+                else datetimes[0] - datetimes[1]
+            )
+        else:
+            raise ValueError("The list must contain at least two datetime objects")
+
+        lower_lim = datetimes[0] - (difference * 0.75)
+        upper_lim = datetimes[-1] + (difference * 0.75)
+
+        return lower_lim, upper_lim
+
+    def reduce_values(self, values: list[Any | str]) -> list[Any | str]:
+        """Change every other value in a list to empty string ''."""
+        for i in range(len(values)):
+            if (i % 2) == 1:
+                values[i] = ""
+
+        return values
 
 
 class GraphTab:
