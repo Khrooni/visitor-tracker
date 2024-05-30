@@ -10,6 +10,7 @@ import matplotlib.dates as mdates
 
 
 # import datetime
+from dateutil.rrule import rrule, YEARLY, MONTHLY, DAILY, HOURLY
 from datetime import datetime, date
 import numpy as np
 import pytz
@@ -129,9 +130,8 @@ class GraphPage(ctk.CTkFrame):
         if self.graph_amount != self.active_graph_amount:
             self._arrange_graphs()
 
-        self.graph_amount
-
-        self.all_graphs[graph_num].draw_graph(self.graph_amount)
+        if self.graph_amount >= (graph_num + 1):
+            self.all_graphs[graph_num].draw_graph(self.graph_amount)
 
         self.active_graph_amount = self.graph_amount
 
@@ -240,7 +240,7 @@ class SideBarGraph(ctk.CTkFrame):
         self.tabview._segmented_button.configure(font=ctk.CTkFont(size=15))
         self.tabview.pack_propagate(False)
 
-        self.graph_tabs = []
+        self.graph_tabs: list[GraphTab] = []
 
         # Create 4 graph tabs
         for i in range(4):
@@ -257,6 +257,8 @@ class SideBarGraph(ctk.CTkFrame):
                     self.default_location,
                 )
             )
+        
+        self.disable_tab_buttons(constants.DEFAULT_GRAPH_AMOUNT)
 
     def plot_all_button_event(self):
         print("width:", self.parent.winfo_screenwidth())
@@ -264,11 +266,35 @@ class SideBarGraph(ctk.CTkFrame):
         self.parent.draw_all_graphs()
 
     def change_graph_amount_event(self, value):
-        print("Amount")
         print("Amount: ", value)
-        oikea = constants.GRAPH_AMOUNTS.get(value)
+        new_amount = constants.GRAPH_AMOUNTS.get(value)
 
-        self.parent.graph_amount = oikea
+        if new_amount > self.parent.graph_amount:
+            self.enable_tab_buttons(new_amount)
+        elif new_amount < self.parent.graph_amount:
+            self.disable_tab_buttons(new_amount)
+
+        self.parent.graph_amount = new_amount
+
+
+
+
+
+
+    def disable_tab_buttons(self, graph_amount: int):
+        """Disable 'Plot Graph'-button in all GraphTabs that exceed graph amount"""
+        max_tabs = 4
+        disable_amount = max_tabs - graph_amount
+
+        for i in range(disable_amount):
+            self.graph_tabs[(max_tabs - 1) - i].plot_graph_button.configure(
+                state=ctk.DISABLED
+            )
+
+    def enable_tab_buttons(self, graph_amount: int):
+        for i in range(graph_amount - 1):
+            # i + 1 (first tab button is never disabled)
+            self.graph_tabs[i + 1].plot_graph_button.configure(state=ctk.ACTIVE)
 
 
 class Graph(ctk.CTkFrame):
@@ -460,27 +486,38 @@ class Graph(ctk.CTkFrame):
         )
 
         if self.time_mode == "Time range":
+
             locator = mdates.AutoDateLocator(tz=constants.DEFAULT_TIMEZONE)
             formatter = mdates.ConciseDateFormatter(
                 locator, tz=constants.DEFAULT_TIMEZONE
             )
+
+            # alku_dt = datetime(2024, 3)
+            # for i in range(8):
+            #     jep = locator.get_locator(alku_dt, datetime(2024, 4+i))
+            #     print("locator:", jep)
+            #     print("\n")
+
+            # locator.intervald[DAILY] = [1,2,3,7, 14, 21, 30]
+            # # locator.intervald[MONTHLY] = [6]
+
             # '%#d' only works with windows. '%-d' on linux
             formatter.formats = [
-                "%y",  # ticks are mostly years
-                "%b",  # ticks are mostly months
-                "%a, %#d.",  # ticks are mostly days
-                "%H:%M",  # hrs
-                "%H:%M",  # min
-                "%S.%f",
-            ]  # secs
+                "(f_y) %y",  # ticks are mostly years
+                "(f_m) %b",  # ticks are mostly months
+                "(f_d) %a, %#d.",  # ticks are mostly days
+                "(f_h) %H:%M",  # hrs
+                "(f_m) %H:%M",  # min
+                "(f_s) %S.%f",  # secs
+            ]
 
             formatter.zero_formats = [
-                "",
-                "%b %Y",
-                "%b '%y",
-                "%a, %#d. %b",  # '%#d' only works with windows. '%-d' on linux
-                "%H:%M",
-                "%H:%M",
+                "(zf_y)",
+                "(zf_m) %b %Y",
+                "(zf_d) %b '%y",
+                "(zf_h) %a, %#d. %b",  # '%#d' only works with windows. '%-d' on linux
+                "(zf_m) %H:%M",
+                "(zf_s) %H:%M",
             ]
 
             formatter.offset_formats = [
@@ -616,7 +653,7 @@ class GraphTab:
         # "Plot graph"-button
         self.plot_graph_button = ctk.CTkButton(
             self.scrollable_frame,
-            command=self.plot_graph_event,
+            command=self.plot_single_graph_event,
             text="Plot Graph",
             width=constants.SIDEBAR_BUTTON_WIDTH,
         )
@@ -793,10 +830,11 @@ class GraphTab:
         )
         self.location_menu.pack(side=ctk.TOP, padx=10, pady=(10, 10))
 
-    def plot_graph_event(self):
+    def plot_single_graph_event(self):
         print("plot single graph")
         self.graph_page.draw_single_graph(self.graph_num)
 
+        
         # if self.graph_page.graph_amount >= self.graph.graph_num:
         #     if self.graph_page.fig is None:
         #         self.graph_page.set_fig_and_ax()
