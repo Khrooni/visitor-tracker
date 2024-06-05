@@ -16,6 +16,7 @@ DATA_COL_INTERVALS = {
 }
 GRAPH_AMOUNTS = {"1": 1, "2": 2, "4": 4}
 DEFAULT_GRAPH_AMOUNT = 1
+MAX_GRAPH_AMOUNT = 4
 
 GRAPH_MODES = {
     "Visitors": "avg",
@@ -45,8 +46,8 @@ CALENDAR_FONT_SMALLNESS = 12  # Smaller number -> Smaller font size
 TIME_MODES = ["Calendar", "Days of the week", "Time range"]
 DEFAULT_TIME_MODE = "Calendar"
 
-DARK_GREY = "#2b2b2b"
 LIGHT_GREY = "#333333"
+DARK_GREY = "#2b2b2b"
 
 WEEKDAYS = {
     "Monday": "mon",
@@ -68,3 +69,14 @@ DEFAULT_LOCATION = next(iter(NO_LOCATIONS.keys()))
 
 RETRIEVAL_LOCATIONS = {"FUN Oulu Ritaharju": 1}
 DEFAULT_RETRIEVAL_LOCATION = "FUN Oulu Ritaharju"
+
+SQUARE_BLUE = "#697a96"
+SQUARE_GREEN = "#809372"
+SQUARE_RED = "#d45252"
+SQUARE_YELLOW = "#fbc070"
+
+BLUE = "#6c95d9"
+GREEN = "#6be014"
+RED = "#f01a1a"
+YELLOW = "#dede47"
+
