@@ -1,6 +1,10 @@
 from tkcalendar import DateEntry
+
 import customtkinter as ctk
+import tkinter as tk
+from tkinter import filedialog, messagebox
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
+from PIL import Image, ImageTk, ImageGrab
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -42,7 +46,18 @@ class App(ctk.CTk):
 
         ctk.set_appearance_mode("Dark")
 
-        self.menu = Menu(self)
+        # self.menu_tk = MenuTk(self, bg="red", borderwidth=30, activeborderwidth=50)
+        # self.config(menu=self.menu_tk)
+
+        # Create bad menubar
+        self.menu = MyMenuBar(self)
+
+        # test_menubar = TestMenuBar(self, fg_color="#484848")
+        # test_menubar.pack(side="top", fill=ctk.X, expand=False)
+
+        # test_save_button = test_menubar.add_option(
+        #     test_menubar, text="Save", hover_color="black"
+        # )
 
         self.graph_page = GraphPage(self)
         self.database_page = DatabasePage(self)
@@ -73,6 +88,38 @@ class App(ctk.CTk):
     def show_database_page(self):
         self.database_page.lift()
 
+    def open_file_dialog(
+        self,
+        confirmoverwrite: bool | None = True,
+        title="Save Image",
+        filetypes=[("PNG (*.png)", "*.png"), ("JPEG (*.jpg)", "*.jpg")],
+    ):
+        """
+        Open a file dialog.
+
+        Parameters:
+        ---
+        confirmoverwrite (bool, None):
+        title (str, optional): The title of the file dialog window. Defaults to "Save Image".
+        filetypes (list of tuple, optional): Each tuple contains the file type description and the corresponding file extension.
+                filetypes[0][1] used as defaultextension.
+
+        Returns:
+        ---
+        str: The selected file path and filetype. (example: C:/Desktop/test.png)
+        """
+        if filetypes:
+            defaultextension = filetypes[0][1]
+
+        file_path_type = filedialog.asksaveasfilename(
+            confirmoverwrite=confirmoverwrite,
+            defaultextension=defaultextension,
+            title=title,
+            filetypes=filetypes,
+        )
+
+        return file_path_type
+
 
 class GraphPage(ctk.CTkFrame):
     def __init__(self, parent):
@@ -102,10 +149,10 @@ class GraphPage(ctk.CTkFrame):
         self.label.place(relx=0.5, rely=0.45, anchor=ctk.CENTER)
         # self.label.destroy()
 
-        self.graph1 = Graph(self.main_frame, element_color="red", padx=0, pady=0)
-        self.graph2 = Graph(self.main_frame, element_color="green", padx=0, pady=0)
-        self.graph3 = Graph(self.main_frame, element_color="blue", padx=0, pady=0)
-        self.graph4 = Graph(self.main_frame, element_color="orange", padx=0, pady=0)
+        self.graph1 = Graph(self.main_frame, element_color=constants.BLUE)
+        self.graph2 = Graph(self.main_frame, element_color=constants.GREEN)
+        self.graph3 = Graph(self.main_frame, element_color=constants.RED)
+        self.graph4 = Graph(self.main_frame, element_color=constants.YELLOW)
 
         self.all_graphs.append(self.graph1)
         self.all_graphs.append(self.graph2)
@@ -174,6 +221,19 @@ class GraphPage(ctk.CTkFrame):
             self.graph2.grid(sticky="nsew", row=0, column=1, padx=(0, 10), pady=(10, 0))
             self.graph3.grid(sticky="nsew", row=1, column=0, padx=(10, 0), pady=(0, 10))
             self.graph4.grid(sticky="nsew", row=1, column=1, padx=(0, 10), pady=(0, 10))
+
+    def get_drawn_graphs(self) -> list[int]:
+        """Return list of graph numbres of graphs that have been drawn."""
+        drawn_graphs: list[int] = []
+        for i, graph in enumerate(self.all_graphs):
+            if graph.is_drawn:
+                drawn_graphs.append(i + 1)
+
+        return drawn_graphs
+
+    def get_fig(self, graph_num: int) -> Figure:
+        """graph num = index of graph"""
+        return self.all_graphs[graph_num].fig
 
 
 class SideBarGraph(ctk.CTkFrame):
@@ -257,7 +317,7 @@ class SideBarGraph(ctk.CTkFrame):
                     self.default_location,
                 )
             )
-        
+
         self.disable_tab_buttons(constants.DEFAULT_GRAPH_AMOUNT)
 
     def plot_all_button_event(self):
@@ -276,11 +336,6 @@ class SideBarGraph(ctk.CTkFrame):
 
         self.parent.graph_amount = new_amount
 
-
-
-
-
-
     def disable_tab_buttons(self, graph_amount: int):
         """Disable 'Plot Graph'-button in all GraphTabs that exceed graph amount"""
         max_tabs = 4
@@ -294,12 +349,12 @@ class SideBarGraph(ctk.CTkFrame):
     def enable_tab_buttons(self, graph_amount: int):
         for i in range(graph_amount - 1):
             # i + 1 (first tab button is never disabled)
-            self.graph_tabs[i + 1].plot_graph_button.configure(state=ctk.ACTIVE)
+            self.graph_tabs[i + 1].plot_graph_button.configure(state=ctk.NORMAL)
 
 
 class Graph(ctk.CTkFrame):
     def __init__(
-        self, master=None, element_color="red", padx=10, pady=10, *args, **kwargs
+        self, master=None, element_color="red", padx=0, pady=0, *args, **kwargs
     ):
         super().__init__(master, *args, **kwargs)
         self.time_mode: str = constants.DEFAULT_TIME_MODE
@@ -313,29 +368,35 @@ class Graph(ctk.CTkFrame):
         self.weekday: str = constants.DEFAULT_WEEKDAY
         self.time_range: str = constants.DEFAULT_TIME_RANGE
 
+        self.is_drawn = False
         self.title: str = "Default title"
         self.x_values: list = []
         self.y_values: list = []
         self.x_label: str = "x label"
         self.y_label: str = "y label"
         self.element_color: str = element_color
-        self.facecolor: str = "#333333"
+        self.facecolor: str = constants.LIGHT_GREY
         self.edge_color: str = "grey"
         self.axis_colors: str = "white"
 
         self.pack_propagate(False)
         self.fig = Figure(
-            figsize=(20, 20), facecolor=self.facecolor, layout="constrained"
+            figsize=(20, 20),
+            facecolor=self.facecolor,
+            layout="constrained",
         )
         self.ax = self.fig.add_subplot()
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(padx=padx, pady=pady)
-        # self.canvas.get_tk_widget().configure()
+
+        # Hide annoying white lines caused by canvas background by changing canvas bg color
+        # to match surrounding color. (These lines seem to only show up with certain fig sizes)
+        self.canvas.get_tk_widget().configure(background=constants.LIGHT_GREY)
 
     def draw_graph(self, graph_amount: int = 1):
-        """If graph amount 4 only every other values is used for bar graph"""
+        """If graph amount 4 only every other value is used for bar graph"""
         self._get_graph_data()
         self._set_graph_settings(graph_amount)
 
@@ -362,6 +423,7 @@ class Graph(ctk.CTkFrame):
             self.ax.set_ylim(-0.0001, None)
 
         self.canvas.draw()
+        self.is_drawn = True
 
     def _get_graph_data(self) -> bool:
         try:
@@ -485,6 +547,9 @@ class Graph(ctk.CTkFrame):
             labelcolor=self.axis_colors,
         )
 
+        for spine in self.ax.axes.spines.values():
+            spine.set_edgecolor(self.edge_color)
+
         if self.time_mode == "Time range":
 
             locator = mdates.AutoDateLocator(tz=constants.DEFAULT_TIMEZONE)
@@ -549,9 +614,6 @@ class Graph(ctk.CTkFrame):
 
             lower_limit, upper_limit = self.get_limits(self.x_values)
             self.ax.set_xlim(lower_limit, upper_limit)
-
-        for spine in self.ax.axes.spines.values():
-            spine.set_edgecolor(self.edge_color)
 
     def _set_title_labels(self, timestamps: list[int]):
         if self.time_mode == "Calendar":
@@ -834,7 +896,6 @@ class GraphTab:
         print("plot single graph")
         self.graph_page.draw_single_graph(self.graph_num)
 
-        
         # if self.graph_page.graph_amount >= self.graph.graph_num:
         #     if self.graph_page.fig is None:
         #         self.graph_page.set_fig_and_ax()
@@ -1028,7 +1089,7 @@ class MainFrameDatabase(ctk.CTkFrame):
             self,
             text=f"Active Data Collection Interval: {self.col_interval}",
             corner_radius=10,
-            fg_color="#2b2b2b",
+            fg_color=constants.DARK_GREY,
             padx=10,
             pady=20,
         )
@@ -1257,8 +1318,8 @@ class CustomDateEntry(DateEntry):
             else:
                 self._top_cal.attributes("-topmost", False)
             # - patch begin: Stop calendar from opeing outside screen.
-            current_screen_heigth = utils.get_monitor_from_coord(x, y).height
-            if y + self._top_cal.winfo_height() > current_screen_heigth - 70:
+            current_screen_height = utils.get_monitor_from_coord(x, y).height
+            if y + self._top_cal.winfo_height() > current_screen_height - 70:
                 y = self.winfo_rooty() - self._top_cal.winfo_height()
             # - patch end
             self._top_cal.geometry("+%i+%i" % (x, y))
@@ -1296,18 +1357,80 @@ class CustomDateEntry(DateEntry):
         self.configure_size()
 
 
-class Menu(CTkMenuBar):
+class MenuTk(tk.Menu):
+    def __init__(self, parent: App, **kwargs):
+        super().__init__(parent, **kwargs)
+
+        # create a menu
+        file_menu = tk.Menu(self)
+
+        # add a menu item to the menu
+        file_menu.add_command(label="Exit", command=lambda: print("Exit"))
+
+        # add the File menu to the menubar
+        self.add_cascade(label="File", menu=file_menu)
+
+
+# class TestMenuBar(ctk.CTkFrame):
+#     def __init__(self, parent: App, **kwargs):
+#         super().__init__(parent, corner_radius=0, height=25, **kwargs)
+#         self.pack_propagate(True)
+
+#     def add_dropdown(self)
+
+#     def add_option(self, parent: ctk.CTkFrame, text: str, hover_color: str = "black"):
+#         button = ctk.CTkButton(
+#             parent,
+#             text=text,
+#             bg_color="transparent",
+#             fg_color="transparent",
+#             text_color="white",
+#             # border_spacing=10,
+#             hover_color=hover_color,
+#             corner_radius=0,
+#             height=25,
+#             width=1,
+#         )
+#         button.pack(
+#             side=ctk.LEFT,
+#             fill=ctk.BOTH,
+#             expand=False,
+#         )
+
+#         return button
+#         # test_menubar.pack(side="top", fill=ctk.X, expand=False)
+
+
+class MyMenuBar(CTkMenuBar):
     def __init__(self, parent: App):
         super().__init__(parent, bg_color="#484848")
+        self.parent = parent
+
         self.file_button = self.add_cascade("File", text_color="white")
         self.view_button = self.add_cascade("View", text_color="white")
         self.help_button = self.add_cascade("Help", text_color="white")
 
         # Buttons inside file
         self.file_dropdown = CustomDropdownMenu(master=parent, widget=self.file_button)
+
+        self.file_dropdown.add_option("Save Figure", command=self.save_fig)
         self.file_dropdown.add_option(
-            option="Save Graph", command=lambda: print("save graph")
+            "Save Single Graph", command=self.save_single_graph
         )
+
+        # save_sub_menu = self.file_dropdown.add_submenu("Save")
+
+        # save_sub_menu.add_option(option="Save Figure")
+        # single_sm = save_sub_menu.add_option(option="Save Single Graph")
+
+        # for i in range(constants.MAX_GRAPH_AMOUNT):
+        #     single_sm.add_option(
+        #         option=f"Graph {i+1}", command=lambda: self.save_single_graph(i + 1)
+        #     )
+
+        # self.file_dropdown.add_option(
+        #     option="Save Graph", command=lambda: print("save graph")
+        # )
         self.file_dropdown.add_separator()
         # Choose database submenu
         sub_menu = self.file_dropdown.add_submenu("Choose Database")
@@ -1331,6 +1454,238 @@ class Menu(CTkMenuBar):
         self.view_dropdown.add_option(
             option="something", command=lambda: print("something")
         )
+
+    def save_single_graph(self):
+        print("Save single graph num:", 12345)
+
+        drawn_graphs = self.parent.graph_page.get_drawn_graphs()
+        if drawn_graphs:
+            PopupWindow(self.parent, drawn_graphs)
+        else:
+            messagebox.showerror(
+                "Error",
+                "No graphs have been drawn yet. Draw a graph before attempting to save.",
+            )
+
+    def save_fig(self):
+        print("Save fig")
+        drawn_graphs = self.parent.graph_page.get_drawn_graphs()
+        if drawn_graphs:
+
+            file_path = self.parent.open_file_dialog(title="Save Figure")
+            if file_path:
+                images = []
+
+                for i in range(self.parent.graph_page.active_graph_amount):
+                    canvas = self.parent.graph_page.all_graphs[i].fig.canvas
+                    images.append(
+                        Image.frombytes(
+                            "RGB", canvas.get_width_height(), canvas.tostring_rgb()
+                        )
+                    )
+
+                width, height = self._new_fig_size(images)
+
+                new_im = Image.new("RGB", (width, height))
+
+                x_offset = 0
+                y_offset = 0
+                for i, im in enumerate(images):
+                    new_im.paste(im, (x_offset, y_offset))
+                    x_offset += im.size[0]
+                    if (i == 1 and len(images) == 4) or (i == 0 and len(images) == 2):
+                        x_offset = 0
+                        y_offset += im.size[1]
+
+                new_im.save(file_path)
+        else:
+            messagebox.showerror(
+                "Error",
+                "No graphs have been drawn yet. Draw a graph before attempting to save.",
+            )
+
+    def _new_fig_size(self, images: list[Image.Image]) -> tuple[int, int]:
+        """
+        Returns the size of the new image.
+
+
+        If images has only 1 image the new image size is the size of the original image
+
+        If images has 2 images
+            the new width is image0 + image1 width
+            the new height is the max(height) of the two images
+
+        if images has 4 images
+            the new width is max(image0, image2) + max(image1, image3) width
+            the new height is max(image0, image1) + max(image2, image3) height
+
+        returns
+        ---
+        width, height
+        """
+        width = 0
+        height = 0
+        if len(images) == 1:
+            return images[0].size
+        if len(images) == 2:
+            for img in images:
+                height += img.height
+            width = max([img.width for img in images])
+
+        if len(images) == 4:
+            width += max(images[0].width, images[2].width)
+            width += max(images[1].width, images[3].width)
+
+            height += max(images[0].height, images[1].height)
+            height += max(images[2].height, images[3].height)
+
+        return width, height
+
+    def combine_figs(self) -> Figure:
+        canvases = []
+        for i in range(self.parent.graph_page.graph_amount):
+            canvases.append(self.parent.graph_page.all_graphs[i].canvas)
+
+        if len(canvases) == 1:
+            nrows = 1
+            ncols = 1
+        if len(canvases) == 2:
+            nrows = 2
+            ncols = 1
+        if len(canvases) == 4:
+            nrows = 2
+            ncols = 2
+
+        combined_fig = Figure().subplots(nrows=nrows, ncols=ncols)
+
+        return combined_fig
+
+
+class PopupWindow(ctk.CTkToplevel):
+    def __init__(self, parent: App, drawn_graphs: list[int], *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.parent = parent
+        self.chosen_graph = None
+
+        self.geometry("250x300")
+        self.minsize(250, 300)
+        self.maxsize(350, 400)
+        self.title("Select graph")
+        self.grab_set()
+
+        # Open Image
+        img_square = Image.open("src\images\square1234.png")
+        img_square_ctk = ctk.CTkImage(
+            light_image=img_square, dark_image=img_square, size=(150, 150)
+        )
+        # Add Image
+        img_square_label = ctk.CTkLabel(self, text="", image=img_square_ctk)
+        img_square_label.pack(side=ctk.TOP)
+
+        drawn_graphs = [str(i) for i in drawn_graphs]
+
+        # Choose graph Dropdown and Label
+        choose_graph_menu = DropdownAndLabel(
+            self,
+            "Choose which graph to save:",
+            drawn_graphs,
+            self._choose_graph_event,
+            "Graph number",
+            menu_width=150,
+        )
+        choose_graph_menu.pack(
+            side=ctk.TOP,
+            padx=10,
+            pady=0,
+        )
+
+
+
+        # # Info Frame
+        # info_frame = ctk.CTkFrame(
+        #     self,
+        #     width=40,
+        #     height=40,
+        #     corner_radius=20,
+        #     bg_color="transparent",
+        #     fg_color="white",
+        # )
+        # info_frame.pack(side=ctk.TOP, expand=True, anchor="e", padx=0, pady=0)
+        # info_frame.pack_propagate(False)
+        
+        # Info Image
+        info_img = Image.open("src\images\information-button.png")
+        info_img_ctk = ctk.CTkImage(
+            light_image=info_img, dark_image=info_img, size=(15, 15)
+        )
+
+        # Info button
+        info_button = ctk.CTkButton(
+            self,
+            image=info_img_ctk,
+            width=1,
+            height=1,
+            corner_radius=15,
+            hover_color="#544e4e",
+            text="",
+            border_spacing=0,
+            border_width=0,
+            # background_corner_colors=("transparent", "transparent")
+            # border_color="transparent",
+            fg_color="white",
+            bg_color="transparent",
+            # compound="center"
+        )
+        info_button.pack(side=ctk.TOP, anchor="e")
+        # info_button.place(relx=0.5, rely=0.5, anchor="center")
+
+        # test label
+        # label = ctk.CTkLabel(info_frame, image=info_img_ctk, text="", bg_color="transparent", fg_color="transparent")
+        # label.place(relx=0.5, rely=0.5, anchor="center")
+        # label.pack(side="top")
+
+        # Frame for Cancel and OK buttons
+        buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
+        buttons_frame.pack(side=ctk.BOTTOM, fill="x")
+        buttons_frame.pack_propagate(False)
+        # Cancel button
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            width=80,
+            height=5,
+            corner_radius=0,
+            border_width=0.5,
+            text="Cancel",
+            command=self._cancel_event,
+        )
+        cancel_button.pack(side=ctk.RIGHT, padx=(10, 15))
+        # OK button
+        self.ok_button = ctk.CTkButton(
+            buttons_frame,
+            width=80,
+            height=5,
+            corner_radius=0,
+            border_width=0.5,
+            text="OK",
+            state=ctk.DISABLED,
+            command=self._ok_event,
+        )
+        self.ok_button.pack(side=ctk.RIGHT)
+
+    def _choose_graph_event(self, value):
+        print("Choose graph event:", value)
+        self.chosen_graph = int(value) - 1
+        self.ok_button.configure(state=ctk.NORMAL)
+
+    def _cancel_event(self):
+        self.destroy()
+
+    def _ok_event(self):
+        fig = self.parent.graph_page.get_fig(self.chosen_graph)
+        file_path = self.parent.open_file_dialog(title="Save Graph")
+        if file_path:
+            fig.savefig(fname=file_path)
+            self.destroy()
 
 
 def main():
