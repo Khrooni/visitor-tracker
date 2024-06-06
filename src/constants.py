@@ -80,3 +80,4 @@ GREEN = "#6be014"
 RED = "#f01a1a"
 YELLOW = "#dede47"
 
+DARK_GREY_SETTINGS_BUTTON = "#302c2c"
