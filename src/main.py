@@ -28,6 +28,10 @@ import database.helpers
 import retrieve_data
 from retrieve_data import Location
 import utils
+from settings import Settings
+
+
+app_settings = Settings()
 
 
 class App(ctk.CTk):
@@ -45,29 +49,24 @@ class App(ctk.CTk):
 
         ctk.set_appearance_mode("Dark")
 
-        # self.menu_tk = MenuTk(self, bg="red", borderwidth=30, activeborderwidth=50)
-        # self.config(menu=self.menu_tk)
-
         # Create bad menubar
         self.menu = MyMenuBar(self)
 
-        # test_menubar = TestMenuBar(self, fg_color="#484848")
-        # test_menubar.pack(side="top", fill=ctk.X, expand=False)
-
-        # test_save_button = test_menubar.add_option(
-        #     test_menubar, text="Save", hover_color="black"
-        # )
-
+        # Create pages
         self.graph_page = GraphPage(self)
         self.database_page = DatabasePage(self)
 
+        # Create Frame for pages
         container = ctk.CTkFrame(self)
-        container.pack(side="top", fill="both", expand=True)
+        container.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
+        # Place pages in Frame
         self.graph_page.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.database_page.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
 
+        # Bring graph page on top
         self.show_graph_page()
+
         # run
         self.mainloop()
 
@@ -123,7 +122,7 @@ class App(ctk.CTk):
 class GraphPage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, corner_radius=0)
-        self.pack(side="top", fill="both", expand="true")
+        self.pack(side=ctk.TOP, fill=ctk.BOTH, expand="true")
 
         self.all_graphs: list[Graph] = []
         self.graph_amount = constants.DEFAULT_GRAPH_AMOUNT
@@ -160,8 +159,10 @@ class GraphPage(ctk.CTkFrame):
 
         # Sidebar
         self.sidebar = SideBarGraph(self)
-        self.sidebar.pack(fill="y", side="left")
-        self.main_frame.pack(fill="both", expand=True, side="left", padx=10, pady=10)
+        self.sidebar.pack(fill=ctk.Y, side=ctk.LEFT)
+        self.main_frame.pack(
+            fill=ctk.BOTH, expand=True, side=ctk.LEFT, padx=10, pady=10
+        )
 
     def draw_all_graphs(self):
         if self.graph_amount != self.active_graph_amount:
@@ -190,7 +191,7 @@ class GraphPage(ctk.CTkFrame):
             self.graph3.grid_forget()
             self.graph4.grid_forget()
 
-            self.graph1.pack(side=ctk.TOP, fill="both", expand=True, padx=10, pady=10)
+            self.graph1.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=10)
             self.graph2.pack_forget()
             self.graph3.pack_forget()
             self.graph4.pack_forget()
@@ -201,10 +202,10 @@ class GraphPage(ctk.CTkFrame):
             self.graph4.grid_forget()
 
             self.graph1.pack(
-                side=ctk.TOP, fill="both", expand=True, padx=10, pady=(10, 0)
+                side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=(10, 0)
             )
             self.graph2.pack(
-                side=ctk.TOP, fill="both", expand=True, padx=10, pady=(0, 10)
+                side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=(0, 10)
             )
             self.graph3.pack_forget()
             self.graph4.pack_forget()
@@ -250,7 +251,7 @@ class SideBarGraph(ctk.CTkFrame):
 
         db_handle = None
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
 
             locations_dict = db_handle.get_locations_dict()
 
@@ -295,7 +296,7 @@ class SideBarGraph(ctk.CTkFrame):
 
         # Create graph tabview
         self.tabview = ctk.CTkTabview(self, width=constants.SIDEBAR_WIDTH)
-        self.tabview.pack(side=ctk.TOP, fill="y", expand=True, pady=(15, 10), padx=10)
+        self.tabview.pack(side=ctk.TOP, fill=ctk.Y, expand=True, pady=(15, 10), padx=10)
         self.tabview._segmented_button.configure(font=ctk.CTkFont(size=15))
         self.tabview.pack_propagate(False)
 
@@ -426,7 +427,7 @@ class Graph(ctk.CTkFrame):
 
     def _get_graph_data(self) -> bool:
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
             if self.time_mode == "Calendar":
                 search_start, search_end = self._get_search_range()
                 visitors = db_handle.get_data_by_mode(
@@ -504,7 +505,7 @@ class Graph(ctk.CTkFrame):
 
     def _get_all_search_start(self) -> int | None:
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
             )
@@ -519,7 +520,7 @@ class Graph(ctk.CTkFrame):
 
     def get_first(self) -> datetime | None:
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
             )
@@ -541,7 +542,7 @@ class Graph(ctk.CTkFrame):
             color=self.axis_colors, labelcolor=self.axis_colors
         )
         self.ax.xaxis.set_tick_params(
-            which="both",
+            which=ctk.BOTH,
             color=self.axis_colors,
             labelcolor=self.axis_colors,
         )
@@ -802,7 +803,7 @@ class GraphTab:
         self.cal.bind("<Key>", lambda e: "break")  # Disable writing in calendar
         self.cal.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
         self.cal.bind("<Control-a>", lambda e: None)  # Enable Ctrl + a
-        self.cal.pack(side=ctk.TOP, fill="both", expand=True)
+        self.cal.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
         # Weekday frame
         self.weekday_frame = ctk.CTkFrame(
@@ -1008,7 +1009,7 @@ class DatabasePage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, corner_radius=0)
 
-        self.pack(side="top", fill="both", expand="true")
+        self.pack(side=ctk.TOP, fill=ctk.BOTH, expand="true")
 
         self.main_frame = MainFrameDatabase(self)
         self.sidebar = SideBarDatabase(self, self.main_frame)
@@ -1056,7 +1057,7 @@ class MainFrameDatabase(ctk.CTkFrame):
         self.textbox.bind("<Control-a>", lambda e: None)  # Enable Ctrl + a
 
         self.pack_propagate(False)
-        self.pack(fill="both", expand=True, side=side, padx=10, pady=10)
+        self.pack(fill=ctk.BOTH, expand=True, side=side, padx=10, pady=10)
 
         # Active Settings Label
         self.info_label = ctk.CTkLabel(
@@ -1129,14 +1130,14 @@ class SideBarDatabase(ctk.CTkFrame):
         self.unique_dates = []
 
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
             self.unique_dates = db_handle.get_unique_dates(
                 constants.RETRIEVAL_LOCATIONS.get(constants.DEFAULT_RETRIEVAL_LOCATION)
             )
         finally:
             db_handle.__del__()
 
-        self.pack(fill="y", side="left")
+        self.pack(fill=ctk.Y, side=ctk.LEFT)
         self.pack_propagate(False)
 
         # Sidebar label
@@ -1147,7 +1148,7 @@ class SideBarDatabase(ctk.CTkFrame):
 
         # Button frame for start/stop data collection
         button_frame = ctk.CTkFrame(self, height=80, fg_color="transparent")
-        button_frame.pack(fill="y", expand=False)
+        button_frame.pack(fill=ctk.Y, expand=False)
         # Start data collection Button
         self.start_button = ctk.CTkButton(
             self,
@@ -1224,7 +1225,7 @@ class SideBarDatabase(ctk.CTkFrame):
 
     def _get_data_in_intervals(self, interval: int, thread_id: int):
         try:
-            db_handle = database.SQLiteDBManager()
+            db_handle = database.SQLiteDBManager(app_settings.get_db_path())
 
             # Collect data until theard_id changes
             while thread_id == self.thread_id:
@@ -1369,50 +1370,156 @@ class MenuTk(tk.Menu):
         # add the File menu to the menubar
         self.add_cascade(label="File", menu=file_menu)
 
+
 class MyMenuBar(CTkMenuBar):
-    def __init__(self, parent: App):
-        super().__init__(parent, bg_color="#484848")
+    def __init__(self, parent: App, *args, **kwargs):
+        super().__init__(parent, bg_color="#484848", *args, **kwargs)
         self.parent = parent
 
-        self.file_button = self.add_cascade("File", text_color="white")
-        self.view_button = self.add_cascade("View", text_color="white")
-        self.help_button = self.add_cascade("Help", text_color="white")
-
-        # Buttons inside file
-        self.file_dropdown = CustomDropdownMenu(master=parent, widget=self.file_button)
-
-        self.file_dropdown.add_option("Save Figure", command=self.save_fig)
-        self.file_dropdown.add_option(
-            "Save Single Graph", command=self.save_single_graph
+        # Menubar buttons
+        file_button = self.add_cascade("File", text_color="white")
+        view_button = self.add_cascade("View", text_color="white")
+        self.add_cascade(
+            "Settings", self.open_settings, text_color="white", cursor="hand2"
         )
+        help_button = self.add_cascade("Help", text_color="white")
 
-        self.file_dropdown.add_separator()
+        # Buttons in file
+        file_dropdown = CustomDropdownMenu(master=parent, widget=file_button)
+        file_dropdown.add_option("Save Figure", command=self.save_fig)
+        file_dropdown.add_option("Save Single Graph", command=self.save_single_graph)
+        file_dropdown.add_separator()
         # Choose database submenu
-        sub_menu = self.file_dropdown.add_submenu("Choose Database")
+        sub_menu = file_dropdown.add_submenu("Choose Database")
         sub_menu.add_option(option="Default database")
         sub_menu.add_option(option="Choose database path")
 
-        # Buttons inside View
-        self.view_dropdown = CustomDropdownMenu(master=parent, widget=self.view_button)
-        self.view_dropdown.add_option(
+        # Buttons in View
+        view_dropdown = CustomDropdownMenu(master=parent, widget=view_button)
+        view_dropdown.add_option(
             option="Graphs", command=lambda: parent.show_graph_page()
         )
-        self.view_dropdown.add_option(
+        view_dropdown.add_option(
             option="Database", command=lambda: parent.show_database_page()
         )
 
-        # Buttons inside Help
-        self.view_dropdown = CustomDropdownMenu(master=parent, widget=self.help_button)
-        self.view_dropdown.add_option(
+        # Buttons in Help
+        help_dropdown = CustomDropdownMenu(master=parent, widget=help_button)
+        help_dropdown.add_option(
             option="How to use", command=lambda: print("How to use")
         )
-        self.view_dropdown.add_option(
-            option="something", command=lambda: print("something")
+        help_dropdown.add_option(option="something", command=lambda: print("something"))
+
+    def open_settings(self):
+        settings_popup = ctk.CTkToplevel(self)
+        settings_popup.geometry("250x300")
+        settings_popup.minsize(400, 300)
+        # settings_popup.maxsize(250, 300)
+        settings_popup.title("Settings")
+        settings_popup.grab_set()
+
+        innder_width = 125
+
+        pady = 8
+        padx_outer = 8
+        padx_inner = (padx_outer + 10, 5)
+
+        # Settings label
+        label = ctk.CTkLabel(
+            settings_popup,
+            text="Settings",
+            anchor="w",
+            padx=5,
+            pady=10,
+            bg_color=constants.LIGHT_GREY,
+        )
+        label.cget("font").configure(size=20, weight="bold")
+        label.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady)
+
+
+        # Database frame
+        db_frame = ctk.CTkFrame(settings_popup, corner_radius=0)
+        db_frame.pack(
+            side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady
+        )
+        # Database label
+        db_label = ctk.CTkLabel(db_frame, text="Database", anchor="w")
+        db_label.cget("font").configure(size=15, weight="bold")
+        db_label.pack(side=ctk.TOP, anchor="sw", padx=8, pady=0)
+        # Path label
+        path_label = ctk.CTkLabel(
+            db_frame, text="Database path:", anchor="w", height=0, width=innder_width
+        )
+        path_label.cget("font").configure(size=12)
+        path_label.pack(
+            side=ctk.LEFT, anchor="sw", padx=padx_inner, pady=(0, padx_outer)
+        )
+        # Path button
+        path_button = ctk.CTkButton(
+            db_frame,
+            text=app_settings.get_db_path(),
+            font=path_label.cget("font"),
+            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
+            border_color="black",
+            border_width=1,
+            height=0,
+            anchor="w",
+            command=self.select_db
+        )
+        path_button.pack(
+            side=ctk.LEFT,
+            anchor="sw",
+            padx=padx_outer,
+            pady=(0, padx_outer),
+            fill=ctk.X,
+            expand=True,
         )
 
-    def save_single_graph(self):
-        print("Save single graph num:", 12345)
+        # Graphs Frame
+        graphs_frame = ctk.CTkFrame(settings_popup, corner_radius=0)
+        graphs_frame.pack(
+            side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady
+        )
+        # Database label
+        graphs_label = ctk.CTkLabel(graphs_frame, text="Graphs", anchor="w")
+        graphs_label.cget("font").configure(size=15, weight="bold")
+        graphs_label.pack(side=ctk.TOP, anchor="sw", padx=8, pady=0)
+        # y-axis limits label
+        y_axis_label = ctk.CTkLabel(
+            graphs_frame, text="y-axis limits:", anchor="w", height=0, width=innder_width
+        )
+        y_axis_label.cget("font").configure(size=12)
+        y_axis_label.pack(
+            side=ctk.LEFT, anchor="sw", padx=padx_inner, pady=(0, padx_outer)
+        )
+        # y-axis limits button
+        y_axis_button = ctk.CTkButton(
+            graphs_frame,
+            text=app_settings.ylim,
+            font=path_label.cget("font"),
+            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
+            border_color="black",
+            border_width=1,
+            height=0,
+            anchor="w",
+            command=self.select_ylim
+        )
+        y_axis_button.pack(
+            side=ctk.LEFT,
+            anchor="sw",
+            padx=padx_outer,
+            pady=(0, padx_outer),
+            fill=ctk.X,
+            expand=True,
+        )
 
+    def select_db(self):
+        print("Select db")
+    
+    def select_ylim(self):
+        print("Select ylim")
+
+    def save_single_graph(self):
         drawn_graphs = self.parent.graph_page.get_drawn_graphs()
         if drawn_graphs:
             SaveSinglePopup(self.parent, drawn_graphs)
@@ -1442,7 +1549,6 @@ class MyMenuBar(CTkMenuBar):
                 width, height = self._new_fig_size(images)
 
                 new_im = self._combine_images(images, width, height)
-
                 new_im.save(file_path)
         else:
             messagebox.showerror(
@@ -1555,17 +1661,20 @@ class SaveSinglePopup(ctk.CTkToplevel):
             image=info_img_ctk,
             width=1,
             height=1,
+            corner_radius=50,
             hover_color="#afafaf",
             text="",
             fg_color="white",
             bg_color="transparent",
             command=self._info_event,
+            round_height_to_even_numbers=False,
+            round_width_to_even_numbers=False,
         )
         info_button.pack(side=ctk.LEFT, anchor="se")
 
         # Frame for Cancel and OK buttons
         buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
-        buttons_frame.pack(side=ctk.BOTTOM, fill="x")
+        buttons_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
         buttons_frame.pack_propagate(False)
         # Cancel button
         cancel_button = ctk.CTkButton(
