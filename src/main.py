@@ -4,7 +4,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
-from PIL import Image, ImageTk, ImageGrab
+from PIL import Image, ImageTk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -13,7 +13,6 @@ import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 
 
-# import datetime
 from dateutil.rrule import rrule, YEARLY, MONTHLY, DAILY, HOURLY
 from datetime import datetime, date
 import numpy as np
@@ -1370,37 +1369,6 @@ class MenuTk(tk.Menu):
         # add the File menu to the menubar
         self.add_cascade(label="File", menu=file_menu)
 
-
-# class TestMenuBar(ctk.CTkFrame):
-#     def __init__(self, parent: App, **kwargs):
-#         super().__init__(parent, corner_radius=0, height=25, **kwargs)
-#         self.pack_propagate(True)
-
-#     def add_dropdown(self)
-
-#     def add_option(self, parent: ctk.CTkFrame, text: str, hover_color: str = "black"):
-#         button = ctk.CTkButton(
-#             parent,
-#             text=text,
-#             bg_color="transparent",
-#             fg_color="transparent",
-#             text_color="white",
-#             # border_spacing=10,
-#             hover_color=hover_color,
-#             corner_radius=0,
-#             height=25,
-#             width=1,
-#         )
-#         button.pack(
-#             side=ctk.LEFT,
-#             fill=ctk.BOTH,
-#             expand=False,
-#         )
-
-#         return button
-#         # test_menubar.pack(side="top", fill=ctk.X, expand=False)
-
-
 class MyMenuBar(CTkMenuBar):
     def __init__(self, parent: App):
         super().__init__(parent, bg_color="#484848")
@@ -1418,19 +1386,6 @@ class MyMenuBar(CTkMenuBar):
             "Save Single Graph", command=self.save_single_graph
         )
 
-        # save_sub_menu = self.file_dropdown.add_submenu("Save")
-
-        # save_sub_menu.add_option(option="Save Figure")
-        # single_sm = save_sub_menu.add_option(option="Save Single Graph")
-
-        # for i in range(constants.MAX_GRAPH_AMOUNT):
-        #     single_sm.add_option(
-        #         option=f"Graph {i+1}", command=lambda: self.save_single_graph(i + 1)
-        #     )
-
-        # self.file_dropdown.add_option(
-        #     option="Save Graph", command=lambda: print("save graph")
-        # )
         self.file_dropdown.add_separator()
         # Choose database submenu
         sub_menu = self.file_dropdown.add_submenu("Choose Database")
@@ -1460,7 +1415,7 @@ class MyMenuBar(CTkMenuBar):
 
         drawn_graphs = self.parent.graph_page.get_drawn_graphs()
         if drawn_graphs:
-            PopupWindow(self.parent, drawn_graphs)
+            SaveSinglePopup(self.parent, drawn_graphs)
         else:
             messagebox.showerror(
                 "Error",
@@ -1486,16 +1441,7 @@ class MyMenuBar(CTkMenuBar):
 
                 width, height = self._new_fig_size(images)
 
-                new_im = Image.new("RGB", (width, height))
-
-                x_offset = 0
-                y_offset = 0
-                for i, im in enumerate(images):
-                    new_im.paste(im, (x_offset, y_offset))
-                    x_offset += im.size[0]
-                    if (i == 1 and len(images) == 4) or (i == 0 and len(images) == 2):
-                        x_offset = 0
-                        y_offset += im.size[1]
+                new_im = self._combine_images(images, width, height)
 
                 new_im.save(file_path)
         else:
@@ -1541,27 +1487,24 @@ class MyMenuBar(CTkMenuBar):
 
         return width, height
 
-    def combine_figs(self) -> Figure:
-        canvases = []
-        for i in range(self.parent.graph_page.graph_amount):
-            canvases.append(self.parent.graph_page.all_graphs[i].canvas)
+    def _combine_images(
+        self, images: list[Image.Image], width: int, height: int
+    ) -> Image.Image:
+        new_im = Image.new("RGB", (width, height))
 
-        if len(canvases) == 1:
-            nrows = 1
-            ncols = 1
-        if len(canvases) == 2:
-            nrows = 2
-            ncols = 1
-        if len(canvases) == 4:
-            nrows = 2
-            ncols = 2
+        x_offset = 0
+        y_offset = 0
+        for i, im in enumerate(images):
+            new_im.paste(im, (x_offset, y_offset))
+            x_offset += im.size[0]
+            if (i == 1 and len(images) == 4) or (i == 0 and len(images) == 2):
+                x_offset = 0
+                y_offset += im.size[1]
 
-        combined_fig = Figure().subplots(nrows=nrows, ncols=ncols)
-
-        return combined_fig
+        return new_im
 
 
-class PopupWindow(ctk.CTkToplevel):
+class SaveSinglePopup(ctk.CTkToplevel):
     def __init__(self, parent: App, drawn_graphs: list[int], *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.parent = parent
@@ -1569,7 +1512,7 @@ class PopupWindow(ctk.CTkToplevel):
 
         self.geometry("250x300")
         self.minsize(250, 300)
-        self.maxsize(350, 400)
+        self.maxsize(250, 300)
         self.title("Select graph")
         self.grab_set()
 
@@ -1582,37 +1525,24 @@ class PopupWindow(ctk.CTkToplevel):
         img_square_label = ctk.CTkLabel(self, text="", image=img_square_ctk)
         img_square_label.pack(side=ctk.TOP)
 
-        drawn_graphs = [str(i) for i in drawn_graphs]
+        # Dropdown and info Frame
+        drop_info_frame = ctk.CTkFrame(
+            self, bg_color="transparent", fg_color="transparent"
+        )
+        drop_info_frame.pack(side=ctk.TOP)
 
         # Choose graph Dropdown and Label
+        drawn_graphs = [str(i) for i in drawn_graphs]
         choose_graph_menu = DropdownAndLabel(
-            self,
+            drop_info_frame,
             "Choose which graph to save:",
             drawn_graphs,
             self._choose_graph_event,
             "Graph number",
             menu_width=150,
         )
-        choose_graph_menu.pack(
-            side=ctk.TOP,
-            padx=10,
-            pady=0,
-        )
+        choose_graph_menu.pack(side=ctk.LEFT, padx=10, pady=0, anchor="center")
 
-
-
-        # # Info Frame
-        # info_frame = ctk.CTkFrame(
-        #     self,
-        #     width=40,
-        #     height=40,
-        #     corner_radius=20,
-        #     bg_color="transparent",
-        #     fg_color="white",
-        # )
-        # info_frame.pack(side=ctk.TOP, expand=True, anchor="e", padx=0, pady=0)
-        # info_frame.pack_propagate(False)
-        
         # Info Image
         info_img = Image.open("src\images\information-button.png")
         info_img_ctk = ctk.CTkImage(
@@ -1621,28 +1551,17 @@ class PopupWindow(ctk.CTkToplevel):
 
         # Info button
         info_button = ctk.CTkButton(
-            self,
+            drop_info_frame,
             image=info_img_ctk,
             width=1,
             height=1,
-            corner_radius=15,
-            hover_color="#544e4e",
+            hover_color="#afafaf",
             text="",
-            border_spacing=0,
-            border_width=0,
-            # background_corner_colors=("transparent", "transparent")
-            # border_color="transparent",
             fg_color="white",
             bg_color="transparent",
-            # compound="center"
+            command=self._info_event,
         )
-        info_button.pack(side=ctk.TOP, anchor="e")
-        # info_button.place(relx=0.5, rely=0.5, anchor="center")
-
-        # test label
-        # label = ctk.CTkLabel(info_frame, image=info_img_ctk, text="", bg_color="transparent", fg_color="transparent")
-        # label.place(relx=0.5, rely=0.5, anchor="center")
-        # label.pack(side="top")
+        info_button.pack(side=ctk.LEFT, anchor="se")
 
         # Frame for Cancel and OK buttons
         buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
@@ -1686,6 +1605,15 @@ class PopupWindow(ctk.CTkToplevel):
         if file_path:
             fig.savefig(fname=file_path)
             self.destroy()
+
+    def _info_event(self):
+        messagebox.showinfo(
+            "Info",
+            "Only graphs that have been drawn will be available for saving."
+            + "\n\nThis includes graphs that may not currently be visible on the screen "
+            + "but have been previously drawn.",
+            master=self,
+        )
 
 
 def main():
