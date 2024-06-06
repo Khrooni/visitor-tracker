@@ -7,6 +7,7 @@ import math
 from . import helpers
 
 
+# DB_NAME = "testMultiDB.db"
 DB_NAME = "visitorTrackingDB.db"
 DB_DIRECTORY = "src/database/"
 DB_FILE_PATH = DB_DIRECTORY + DB_NAME
