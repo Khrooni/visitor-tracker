@@ -1412,7 +1412,7 @@ class MyMenuBar(CTkMenuBar):
 
     def open_settings(self):
         settings_popup = ctk.CTkToplevel(self)
-        settings_popup.geometry("250x300")
+        settings_popup.geometry("400x300")
         settings_popup.minsize(400, 300)
         # settings_popup.maxsize(250, 300)
         settings_popup.title("Settings")
@@ -1435,7 +1435,6 @@ class MyMenuBar(CTkMenuBar):
         )
         label.cget("font").configure(size=20, weight="bold")
         label.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady)
-
 
         # Database frame
         db_frame = ctk.CTkFrame(settings_popup, corner_radius=0)
@@ -1464,7 +1463,7 @@ class MyMenuBar(CTkMenuBar):
             border_width=1,
             height=0,
             anchor="w",
-            command=self.select_db
+            command=self.select_db,
         )
         path_button.pack(
             side=ctk.LEFT,
@@ -1486,7 +1485,11 @@ class MyMenuBar(CTkMenuBar):
         graphs_label.pack(side=ctk.TOP, anchor="sw", padx=8, pady=0)
         # y-axis limits label
         y_axis_label = ctk.CTkLabel(
-            graphs_frame, text="y-axis limits:", anchor="w", height=0, width=innder_width
+            graphs_frame,
+            text="y-axis limits:",
+            anchor="w",
+            height=0,
+            width=innder_width,
         )
         y_axis_label.cget("font").configure(size=12)
         y_axis_label.pack(
@@ -1502,7 +1505,7 @@ class MyMenuBar(CTkMenuBar):
             border_width=1,
             height=0,
             anchor="w",
-            command=self.select_ylim
+            command=self.select_ylim,
         )
         y_axis_button.pack(
             side=ctk.LEFT,
@@ -1513,16 +1516,44 @@ class MyMenuBar(CTkMenuBar):
             expand=True,
         )
 
+        # Frame for Cancel and OK buttons
+        buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
+        buttons_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
+        buttons_frame.pack_propagate(False)
+        # Cancel button
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            width=80,
+            height=5,
+            corner_radius=0,
+            border_width=0.5,
+            text="Cancel",
+            command=self._cancel_event,
+        )
+        cancel_button.pack(side=ctk.RIGHT, padx=(10, 15))
+        # OK button
+        self.ok_button = ctk.CTkButton(
+            buttons_frame,
+            width=80,
+            height=5,
+            corner_radius=0,
+            border_width=0.5,
+            text="OK",
+            state=ctk.DISABLED,
+            command=self._ok_event,
+        )
+        self.ok_button.pack(side=ctk.RIGHT)
+
     def select_db(self):
         print("Select db")
-    
+
     def select_ylim(self):
         print("Select ylim")
 
     def save_single_graph(self):
         drawn_graphs = self.parent.graph_page.get_drawn_graphs()
         if drawn_graphs:
-            SaveSinglePopup(self.parent, drawn_graphs)
+            SaveSinglePopup(self.parent, "Select graph", drawn_graphs)
         else:
             messagebox.showerror(
                 "Error",
@@ -1609,35 +1640,111 @@ class MyMenuBar(CTkMenuBar):
 
         return new_im
 
+    def _cancel_event(self):
+        self.destroy()
 
-class SaveSinglePopup(ctk.CTkToplevel):
-    def __init__(self, parent: App, drawn_graphs: list[int], *args, **kwargs):
+    def _ok_event(self):
+        print("update settings. impelement later")
+        # fig = self.parent.graph_page.get_fig(self.chosen_graph)
+        # file_path = self.parent.open_file_dialog(title="Save Graph")
+        # if file_path:
+        #     fig.savefig(fname=file_path)
+        #     self.destroy()
+
+class MyPopup(ctk.CTkToplevel):
+    def __init__(
+        self,
+        parent: App,
+        title: str,
+        geometry="250x300",
+        minsize=(250, 300),
+        maxsize=(250, 300),
+        *args,
+        **kwargs,
+    ):
         super().__init__(parent, *args, **kwargs)
+
+        self.geometry(geometry)
+        self.minsize(minsize[0], minsize[1])
+        self.maxsize(maxsize[0], maxsize[1])
+        self.title(title)
+        self.grab_set()
+
+        self.bottom_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
+
+    def add_bottom_button(
+        self,
+        text: str,
+        command,
+        master: ctk.CTkFrame | None = None,
+        width=80,
+        height=5,
+        corner_radius=0,
+        border_width=0.5,
+        *args,
+        **kwargs,
+    ) -> ctk.CTkButton:
+        """
+        If master is None self.bottom_frame is used.
+        CTkButton *args/**kwargs are usable
+        """
+        if not master:
+            master = self.bottom_frame
+
+        padx = (5, 5)
+        if not master.winfo_children():
+            # More right padding for first button
+            padx = (5, 15)
+
+        button = ctk.CTkButton(
+            master,
+            width=width,
+            height=height,
+            corner_radius=corner_radius,
+            border_width=border_width,
+            text=text,
+            command=command,
+            *args,
+            **kwargs,
+        )
+        button.pack(side=ctk.RIGHT, padx=padx)
+
+        return button
+
+    def pack_bottom_frame(self) -> ctk.CTkFrame:
+        """Returns bottom_frame
+
+        pack: side=bottom, fill=both and pack_propagate=False"""
+        self.bottom_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
+        self.bottom_frame.pack_propagate(False)
+
+        return self.bottom_frame
+
+
+class SaveSinglePopup(MyPopup):
+    def __init__(
+        self, parent: App, title: str, drawn_graphs: list[int], *args, **kwargs
+    ):
+        super().__init__(parent, title, *args, **kwargs)
         self.parent = parent
         self.chosen_graph = None
 
-        self.geometry("250x300")
-        self.minsize(250, 300)
-        self.maxsize(250, 300)
-        self.title("Select graph")
-        self.grab_set()
-
-        # Open Image
+        # Open square image
         img_square = Image.open("src\images\square1234.png")
         img_square_ctk = ctk.CTkImage(
             light_image=img_square, dark_image=img_square, size=(150, 150)
         )
-        # Add Image
+        # Label + add square image to label
         img_square_label = ctk.CTkLabel(self, text="", image=img_square_ctk)
         img_square_label.pack(side=ctk.TOP)
 
-        # Dropdown and info Frame
+        # Dropdown and info frame
         drop_info_frame = ctk.CTkFrame(
             self, bg_color="transparent", fg_color="transparent"
         )
         drop_info_frame.pack(side=ctk.TOP)
 
-        # Choose graph Dropdown and Label
+        # Choose graph dropdown and label
         drawn_graphs = [str(i) for i in drawn_graphs]
         choose_graph_menu = DropdownAndLabel(
             drop_info_frame,
@@ -1649,7 +1756,7 @@ class SaveSinglePopup(ctk.CTkToplevel):
         )
         choose_graph_menu.pack(side=ctk.LEFT, padx=10, pady=0, anchor="center")
 
-        # Info Image
+        # Info image
         info_img = Image.open("src\images\information-button.png")
         info_img_ctk = ctk.CTkImage(
             light_image=info_img, dark_image=info_img, size=(15, 15)
@@ -1672,33 +1779,18 @@ class SaveSinglePopup(ctk.CTkToplevel):
         )
         info_button.pack(side=ctk.LEFT, anchor="se")
 
-        # Frame for Cancel and OK buttons
-        buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
-        buttons_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
-        buttons_frame.pack_propagate(False)
+        # Pack bottom frame
+        bottom_frame = self.pack_bottom_frame()
+
         # Cancel button
-        cancel_button = ctk.CTkButton(
-            buttons_frame,
-            width=80,
-            height=5,
-            corner_radius=0,
-            border_width=0.5,
-            text="Cancel",
-            command=self._cancel_event,
+        cancel_button = self.add_bottom_button(
+            text="Cancel", command=self._cancel_event
         )
-        cancel_button.pack(side=ctk.RIGHT, padx=(10, 15))
+
         # OK button
-        self.ok_button = ctk.CTkButton(
-            buttons_frame,
-            width=80,
-            height=5,
-            corner_radius=0,
-            border_width=0.5,
-            text="OK",
-            state=ctk.DISABLED,
-            command=self._ok_event,
+        self.ok_button: ctk.CTkButton = self.add_bottom_button(
+            text="OK", command=self._ok_event, state=ctk.DISABLED
         )
-        self.ok_button.pack(side=ctk.RIGHT)
 
     def _choose_graph_event(self, value):
         print("Choose graph event:", value)
@@ -1723,6 +1815,12 @@ class SaveSinglePopup(ctk.CTkToplevel):
             + "but have been previously drawn.",
             master=self,
         )
+
+class SelectDBPopup(MyPopup):
+    def __init__(
+        self, parent: App, title: str, *args, **kwargs
+    ):
+        super().__init__(parent, title, *args, **kwargs)
 
 
 def main():
