@@ -17,3 +17,4 @@ tests/test.py
 tests/test2.py
 src/test_funcs.py
 src/test_nor.py
+test_o/
