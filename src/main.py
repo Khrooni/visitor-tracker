@@ -1411,144 +1411,7 @@ class MyMenuBar(CTkMenuBar):
         help_dropdown.add_option(option="something", command=lambda: print("something"))
 
     def open_settings(self):
-        settings_popup = ctk.CTkToplevel(self)
-        settings_popup.geometry("400x300")
-        settings_popup.minsize(400, 300)
-        # settings_popup.maxsize(250, 300)
-        settings_popup.title("Settings")
-        settings_popup.grab_set()
-
-        innder_width = 125
-
-        pady = 8
-        padx_outer = 8
-        padx_inner = (padx_outer + 10, 5)
-
-        # Settings label
-        label = ctk.CTkLabel(
-            settings_popup,
-            text="Settings",
-            anchor="w",
-            padx=5,
-            pady=10,
-            bg_color=constants.LIGHT_GREY,
-        )
-        label.cget("font").configure(size=20, weight="bold")
-        label.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady)
-
-        # Database frame
-        db_frame = ctk.CTkFrame(settings_popup, corner_radius=0)
-        db_frame.pack(
-            side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady
-        )
-        # Database label
-        db_label = ctk.CTkLabel(db_frame, text="Database", anchor="w")
-        db_label.cget("font").configure(size=15, weight="bold")
-        db_label.pack(side=ctk.TOP, anchor="sw", padx=8, pady=0)
-        # Path label
-        path_label = ctk.CTkLabel(
-            db_frame, text="Database path:", anchor="w", height=0, width=innder_width
-        )
-        path_label.cget("font").configure(size=12)
-        path_label.pack(
-            side=ctk.LEFT, anchor="sw", padx=padx_inner, pady=(0, padx_outer)
-        )
-        # Path button
-        path_button = ctk.CTkButton(
-            db_frame,
-            text=app_settings.get_db_path(),
-            font=path_label.cget("font"),
-            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
-            border_color="black",
-            border_width=1,
-            height=0,
-            anchor="w",
-            command=self.select_db,
-        )
-        path_button.pack(
-            side=ctk.LEFT,
-            anchor="sw",
-            padx=padx_outer,
-            pady=(0, padx_outer),
-            fill=ctk.X,
-            expand=True,
-        )
-
-        # Graphs Frame
-        graphs_frame = ctk.CTkFrame(settings_popup, corner_radius=0)
-        graphs_frame.pack(
-            side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=padx_outer, pady=pady
-        )
-        # Database label
-        graphs_label = ctk.CTkLabel(graphs_frame, text="Graphs", anchor="w")
-        graphs_label.cget("font").configure(size=15, weight="bold")
-        graphs_label.pack(side=ctk.TOP, anchor="sw", padx=8, pady=0)
-        # y-axis limits label
-        y_axis_label = ctk.CTkLabel(
-            graphs_frame,
-            text="y-axis limits:",
-            anchor="w",
-            height=0,
-            width=innder_width,
-        )
-        y_axis_label.cget("font").configure(size=12)
-        y_axis_label.pack(
-            side=ctk.LEFT, anchor="sw", padx=padx_inner, pady=(0, padx_outer)
-        )
-        # y-axis limits button
-        y_axis_button = ctk.CTkButton(
-            graphs_frame,
-            text=app_settings.ylim,
-            font=path_label.cget("font"),
-            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
-            border_color="black",
-            border_width=1,
-            height=0,
-            anchor="w",
-            command=self.select_ylim,
-        )
-        y_axis_button.pack(
-            side=ctk.LEFT,
-            anchor="sw",
-            padx=padx_outer,
-            pady=(0, padx_outer),
-            fill=ctk.X,
-            expand=True,
-        )
-
-        # Frame for Cancel and OK buttons
-        buttons_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
-        buttons_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
-        buttons_frame.pack_propagate(False)
-        # Cancel button
-        cancel_button = ctk.CTkButton(
-            buttons_frame,
-            width=80,
-            height=5,
-            corner_radius=0,
-            border_width=0.5,
-            text="Cancel",
-            command=self._cancel_event,
-        )
-        cancel_button.pack(side=ctk.RIGHT, padx=(10, 15))
-        # OK button
-        self.ok_button = ctk.CTkButton(
-            buttons_frame,
-            width=80,
-            height=5,
-            corner_radius=0,
-            border_width=0.5,
-            text="OK",
-            state=ctk.DISABLED,
-            command=self._ok_event,
-        )
-        self.ok_button.pack(side=ctk.RIGHT)
-
-    def select_db(self):
-        print("Select db")
-
-    def select_ylim(self):
-        print("Select ylim")
+        SettingsPopup(self.parent, "Settings")
 
     def save_single_graph(self):
         drawn_graphs = self.parent.graph_page.get_drawn_graphs()
@@ -1651,6 +1514,90 @@ class MyMenuBar(CTkMenuBar):
         #     fig.savefig(fname=file_path)
         #     self.destroy()
 
+
+class SettingsFrame(ctk.CTkFrame):
+    def __init__(
+        self,
+        master,
+        corner_radius: int | str | None = 0,
+        **kwargs,
+    ):
+        """
+        **kwargs
+        ---
+        width: int = 200,
+        height: int = 200,
+        border_width: int | str | None = None,
+        bg_color: str | Tuple[str, str] = "transparent",
+        fg_color: str | Tuple[str, str] | None = None,
+        border_color: str | Tuple[str, str] | None = None,
+        background_corner_colors: Tuple[str | Tuple[str, str]] | None = None,
+        overwrite_preferred_drawing_method: str | None = None,
+
+        ---
+        Construct a frame widget with the parent MASTER.
+
+        Valid resource names: background, bd, bg, borderwidth, class, colormap, container, cursor, height,
+        highlightbackground, highlightcolor, highlightthickness, relief, takefocus, visual, width.
+        """
+        super().__init__(master=master, corner_radius=corner_radius, **kwargs)
+
+    def add_title(
+        self, text: str, font_size=15, font_weight="bold", padx=8, pady=8
+    ) -> ctk.CTkLabel:
+        label = ctk.CTkLabel(self, text=text, anchor="w", height=0)
+        label.cget("font").configure(size=font_size, weight=font_weight)
+        label.pack(side=ctk.TOP, anchor="w", padx=padx, pady=pady)
+
+        return label
+
+    def add_setting(
+        self,
+        label_text: str,
+        button_text: str,
+        command,
+        font_size=12,
+        label_width=125,
+        pady=8,
+        padx=8,
+        padx_inner=20,
+    ) -> ctk.CTkFrame:
+        """
+        Frame with a label
+        """
+        # Frame
+        setting_frame = ctk.CTkFrame(self, fg_color="transparent")
+        setting_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.X)
+        # Label
+        label = ctk.CTkLabel(
+            setting_frame, text=label_text, anchor="w", height=0, width=label_width
+        )
+        label.cget("font").configure(size=font_size)
+        label.pack(side=ctk.LEFT, anchor="w", padx=(padx_inner, 0), pady=(0, pady))
+        # Button
+        path_button = ctk.CTkButton(
+            setting_frame,
+            text=button_text,
+            command=command,
+            font=label.cget("font"),
+            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
+            border_color="black",
+            border_width=1,
+            height=0,
+            anchor="w",
+        )
+        path_button.pack(
+            side=ctk.LEFT,
+            anchor="w",
+            padx=(0, padx),
+            pady=(0, pady),
+            fill=ctk.X,
+            expand=True,
+        )
+
+        return setting_frame
+
+
 class MyPopup(ctk.CTkToplevel):
     def __init__(
         self,
@@ -1665,8 +1612,10 @@ class MyPopup(ctk.CTkToplevel):
         super().__init__(parent, *args, **kwargs)
 
         self.geometry(geometry)
-        self.minsize(minsize[0], minsize[1])
-        self.maxsize(maxsize[0], maxsize[1])
+        if minsize:
+            self.minsize(minsize[0], minsize[1])
+        if maxsize:
+            self.maxsize(maxsize[0], maxsize[1])
         self.title(title)
         self.grab_set()
 
@@ -1816,11 +1765,77 @@ class SaveSinglePopup(MyPopup):
             master=self,
         )
 
+
+class SettingsPopup(MyPopup):
+    def __init__(self, parent: App, title: str, *args, **kwargs):
+        super().__init__(
+            parent,
+            title,
+            geometry="400x300",
+            minsize=(400, 300),
+            maxsize=None,
+            *args,
+            **kwargs,
+        )
+        pad = 8
+
+        # Settings label
+        label = ctk.CTkLabel(
+            self,
+            text="Settings",
+            anchor="w",
+            padx=5,
+            pady=10,
+            bg_color=constants.LIGHT_GREY,
+        )
+        label.cget("font").configure(size=20, weight="bold")
+        label.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
+
+        # Database
+        db_frame = SettingsFrame(self)
+        db_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
+
+        db_frame.add_title("Database")
+        db_frame.add_setting(
+            "Database path:", app_settings.get_db_path(), self.select_db
+        )
+
+        # Graphs
+        graph_frame = SettingsFrame(self)
+        graph_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
+
+        graph_frame.add_title("Graphs")
+        graph_frame.add_setting("y.axis limits:", app_settings.ylim, self.select_ylim)
+
+        # Bottom frame
+        self.pack_bottom_frame()
+        self.add_bottom_button("Cancel", self._cancel_event)
+        self.add_bottom_button("OK", self._ok_event)
+
+    def _cancel_event(self):
+        print("cancel event")
+
+    def _ok_event(self):
+        print("OK event")
+
+    def select_db(self):
+        print("Select db")
+
+    def select_ylim(self):
+        print("Select ylim")
+
+
 class SelectDBPopup(MyPopup):
-    def __init__(
-        self, parent: App, title: str, *args, **kwargs
-    ):
-        super().__init__(parent, title, *args, **kwargs)
+    def __init__(self, parent: App, title: str, *args, **kwargs):
+        super().__init__(
+            parent,
+            title,
+            geometry="400x300",
+            minsize=(400, 300),
+            # maxsize=(250, 300),
+            *args,
+            **kwargs,
+        )
 
 
 def main():
