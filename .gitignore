@@ -18,3 +18,4 @@ tests/test2.py
 src/test_funcs.py
 src/test_nor.py
 test_o/
+.vscode/settings.json
