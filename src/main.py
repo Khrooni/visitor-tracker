@@ -45,7 +45,7 @@ class App(ctk.CTk):
     ):
         super().__init__()
         self.title(title)
-        positions = self._calculte_positions(size)
+        positions = self._calculate_positions(size)
         self.geometry(f"{int(size[0])}x{size[1]}+{positions[0]}+{positions[1]}")
         self.minsize(min_size[0], min_size[1])
 
@@ -72,7 +72,7 @@ class App(ctk.CTk):
         # run
         self.mainloop()
 
-    def _calculte_positions(self, size: tuple):
+    def _calculate_positions(self, size: tuple):
         window_width = size[0]
         window_height = size[1]
         display_width = self.winfo_screenwidth()
@@ -244,7 +244,7 @@ class GraphPage(ctk.CTkFrame):
             self.graph4.grid(sticky="nsew", row=1, column=1, padx=(0, 10), pady=(0, 10))
 
     def get_drawn_graphs(self) -> list[int]:
-        """Return list of graph numbres of graphs that have been drawn."""
+        """Return list of numbers of graphs that have been drawn."""
         drawn_graphs: list[int] = []
         for i, graph in enumerate(self.all_graphs):
             if graph.is_drawn:
@@ -631,13 +631,13 @@ class Graph(ctk.CTkFrame):
                 # "(zf_y)",
                 # "(zf_m) %b %Y",
                 # "(zf_d) %b '%y",
-                # "(zf_h) %a, %#d. %b",  # '%#d' only works with windows. '%-d' on linux
+                # "(zf_h) %a, %#d.",  # '%#d' only works with windows. '%-d' on linux
                 # "(zf_m) %H:%M",
                 # "(zf_s) %H:%M",
                 "",
                 "%b %Y",
                 "%b '%y",
-                "%a, %#d. %b",  # '%#d' only works with windows. '%-d' on linux
+                "%a, %#d.",  # '%#d' only works with windows. '%-d' on linux
                 "%H:%M",
                 "%H:%M",
             ]
@@ -1032,7 +1032,7 @@ class GraphTab:
     def change_location_event(self, value):
         print("Set location to:", value)
         self.graph.location_name = value
-        print("Set Calendar minumum date")
+        print("Set Calendar minimum date")
         # Change Calendar mindate to match selected location
         self.cal.configure(mindate=self.graph.get_first())
 
@@ -1694,6 +1694,7 @@ class SettingsFrame(ctk.CTkFrame):
         return setting_frame
 
 
+
 class InfoButton(ctk.CTkButton):
     def __init__(
         self,
@@ -1961,7 +1962,7 @@ class SettingsPopup(MyPopup):
         graph_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
 
         graph_frame.add_title("Graphs")
-        graph_frame.add_setting("y-axis limits:", app_settings.ylim, self.select_ylim)
+        self.ylims_frame = graph_frame.add_setting("y-axis limits:", app_settings.ylim, self.select_ylim)
 
         # Bottom frame
         self.pack_bottom_frame()
@@ -1980,7 +1981,15 @@ class SettingsPopup(MyPopup):
         self.destroy()
 
     def _reset_event(self):
-        print("Reset event")
+        if messagebox.askokcancel("Reset settings?", "Do you really want to reset settings to default values?"):
+            self.filepath = app_settings.default_db_path
+            self.ylim = app_settings.default_ylim
+
+            _, tail = ntpath.split(self.filepath)
+            self.db_path_frame.winfo_children()[1].configure(text=tail)
+
+            self.ylims_frame.winfo_children()[1].configure(text=self.ylim)
+
 
     def select_db(self):
         filepath = self.parent.open_choose_file_dialog("Select database")
