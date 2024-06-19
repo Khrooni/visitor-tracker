@@ -1270,12 +1270,12 @@ class SideBarDatabase(ctk.CTkFrame):
         self.main_frame.change_interval_label(self.col_interval)
         self.write_to_textbox("Data Collection Started!\n\n")
 
-        deamon_thread = threading.Thread(
+        daemon_thread = threading.Thread(
             target=self._get_data_in_intervals,
             args=(constants.DATA_COL_INTERVALS.get(self.col_interval), self.thread_id),
         )
-        deamon_thread.daemon = True
-        deamon_thread.start()
+        daemon_thread.daemon = True
+        daemon_thread.start()
 
     def stop_collecting_data(self):
         self.start_button.lift()
