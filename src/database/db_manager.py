@@ -26,16 +26,16 @@ class SQLiteDBManager:
         self.dbpath = dbpath
         self.conn = sqlite3.connect(dbpath)
 
+        sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
+            location_id INTEGER PRIMARY KEY NOT NULL,
+            location_name TEXT NOT NULL)"""
+
         sql_create_visitor_activity_table = """CREATE TABLE IF NOT EXISTS visitor_activity(
             location_id INTEGER NOT NULL,
             epoch_timestamp INTEGER NOT NULL,
             location_visitors INTEGER NOT NULL,
             PRIMARY KEY (location_id, epoch_timestamp)
             )"""
-
-        sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
-            location_id INTEGER PRIMARY KEY NOT NULL,
-            location_name TEXT NOT NULL)"""
 
         with contextlib.closing(self.conn.cursor()) as cursor:
             cursor.execute(sql_create_locations_table)
@@ -50,6 +50,59 @@ class SQLiteDBManager:
     def __del__(self):
         """Closes db connection"""
         self._close()
+
+    
+    def copy_db(self, dest_db_path: str, replace=False):
+        """
+        Copies the contents of the current database to a specified destination database.
+
+        This method assumes that the current instance is connected to the source (old) database.
+        It will create two tables (`locations` and `visitor_activity`) in the destination database
+        if they do not already exist, and then copy the data from the source database to these tables.
+
+        Parameters:
+        ---
+        dest_db_path (str): The file path to the destination database.
+        replace (bool): If True, existing records in the destination database will be replaced with
+            records from the source database (INSERT OR REPLACE). If False, existing records will be retained
+            and only new records will be added (INSERT OR IGNORE).
+
+        Raises:
+        ---
+        `sqlite3.OperationalError`: If destination database already had `locations`/`visitor_activity` tables, and
+            those tables have an incorrect schema.
+        """
+        conflict_clause = "IGNORE"
+        if replace:
+            conflict_clause = "REPLACE"
+
+        pstmt_attach_db = "ATTACH ? as dest_db"
+        stmt_create_locs = """CREATE TABLE IF NOT EXISTS dest_db.locations(
+            location_id INTEGER PRIMARY KEY NOT NULL,
+            location_name TEXT NOT NULL)"""
+        stmt_create_vis_act = """CREATE TABLE IF NOT EXISTS dest_db.visitor_activity(
+            location_id INTEGER NOT NULL,
+            epoch_timestamp INTEGER NOT NULL,
+            location_visitors INTEGER NOT NULL,
+            PRIMARY KEY (location_id, epoch_timestamp)
+            )"""
+        stmt_add_locs = f"INSERT OR {conflict_clause} INTO dest_db.locations SELECT * FROM main.locations"
+        stmt_add_vis_act = f"INSERT OR {conflict_clause} INTO dest_db.visitor_activity SELECT * FROM main.visitor_activity"
+
+        with contextlib.closing(self.conn.cursor()) as cursor:
+            print("Attach...", dest_db_path)
+            cursor.execute(pstmt_attach_db, (dest_db_path,))
+            print("Create locations...")
+            cursor.execute(stmt_create_locs)
+            print("Create visitor activity...")
+            cursor.execute(stmt_create_vis_act)
+            print("Add locations...")
+            cursor.execute(stmt_add_locs)
+            print("Add visitor activity...")
+            cursor.execute(stmt_add_vis_act)
+            print("Commit...")
+            self.conn.commit()
+            print("Committed")
 
     def add_data(
         self,
@@ -103,7 +156,7 @@ class SQLiteDBManager:
 
         return True
 
-    def add_many_visitor(self, visitor_activity: List[tuple[int, int, int]]):
+    def add_many_visitors(self, visitor_activity: List[tuple[int, int, int]]):
 
         pstmt_add_visitors = "INSERT INTO visitor_activity VALUES (?, ?, ?)"
 
@@ -111,7 +164,7 @@ class SQLiteDBManager:
             cursor.executemany(pstmt_add_visitors, visitor_activity)
             self.conn.commit()
 
-    def add_many_location(self, locations: List[tuple[int, str]]):
+    def add_many_locations(self, locations: List[tuple[int, str]]):
 
         pstmt_add_locations = "INSERT INTO locations VALUES (?, ?)"
 
