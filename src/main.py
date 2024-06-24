@@ -122,7 +122,7 @@ class App(ctk.CTk):
 
     def open_choose_file_dialog(
         self,
-        title="Choose a file",
+        title="Select a file",
         filetypes=[
             ("SQLite Database (*.db)", "*.db"),
         ],
@@ -336,19 +336,11 @@ class SideBarGraph(ctk.CTkFrame):
 
         self.parent.graph_amount = new_amount
 
-    def update_cals(self, dates: list[str]):
-        for graph_tab in self.graph_tabs:
-            graph_tab.update_cal(dates)
-
-    def update_locations(self, locations: dict[str, int], location_name: str):
-        for graph_tab in self.graph_tabs:
-            graph_tab.graph.locations = locations
-            graph_tab.graph.location_name = location_name
-
     def update_all(self):
         locations, location_name, unique_dates = self._get_locations_dates()
-        self.update_locations(locations, location_name)
-        self.update_cals(unique_dates)
+        for graph_tab in self.graph_tabs:
+            graph_tab.update_cal(unique_dates)
+            graph_tab.update_loc(locations, location_name)
 
     def _get_locations_dates(self) -> tuple[dict[str, int], str, list[str]]:
         """
@@ -953,8 +945,19 @@ class GraphTab:
         """Removes old highlighted dates from the calendar and highlights dates in the
         given dates list."""
         self.cal.dates = dates
-        self.cal.configure(mindate=self.graph.get_first(), maxdate=date.today())
+        mindate=self.graph.get_first()
+        maxdate=date.today()
+        if not mindate:
+            mindate=maxdate
+        self.cal.configure(mindate=mindate, maxdate=maxdate)
         self.cal.highlight_dates()
+
+    def update_loc(self, locations: dict[str, int], location_name: str):
+        self.graph.locations = locations
+        self.graph.location_name = location_name
+        self.location_menu.set_menu_values(
+            values=list(locations.keys()), default_value=location_name
+        )
 
     def plot_single_graph_event(self):
         print("plot single graph")
@@ -1030,11 +1033,16 @@ class GraphTab:
         self.graph.time_range = value
 
     def change_location_event(self, value):
-        print("Set location to:", value)
         self.graph.location_name = value
-        print("Set Calendar minimum date")
-        # Change Calendar mindate to match selected location
-        self.cal.configure(mindate=self.graph.get_first())
+
+        try:
+            db_handle = database.SQLiteDBManager(app_settings.db_path)
+            unique_dates = db_handle.get_unique_dates(
+                self.graph.locations.get(self.graph.location_name)
+            )
+            self.update_cal(unique_dates)
+        finally:
+            db_handle.__del__()
 
 
 class DropdownAndLabel(ctk.CTkFrame):
@@ -1291,7 +1299,7 @@ class SideBarDatabase(ctk.CTkFrame):
         try:
             db_handle = database.SQLiteDBManager(app_settings.db_path)
 
-            # Collect data until theard_id changes
+            # Collect data until thread_id changes
             while thread_id == self.thread_id:
                 start_time = time.perf_counter()
 
@@ -1381,7 +1389,7 @@ class CustomDateEntry(DateEntry):
                 self._top_cal.attributes("-topmost", True)
             else:
                 self._top_cal.attributes("-topmost", False)
-            # - patch begin: Stop calendar from opeing outside screen.
+            # - patch begin: Stop calendar from opening outside screen.
             current_screen_height = utils.get_monitor_from_coord(x, y).height
             if y + self._top_cal.winfo_height() > current_screen_height - 70:
                 y = self.winfo_rooty() - self._top_cal.winfo_height()
@@ -1442,9 +1450,14 @@ class MyMenuBar(CTkMenuBar):
         file_dropdown.add_option("Save Single Graph", command=self.save_single_graph)
         file_dropdown.add_separator()
         # Choose database submenu
-        # sub_menu = file_dropdown.add_submenu("Choose Database")
-        file_dropdown.add_option(option="Use default database", command=self.use_default_db)
-        file_dropdown.add_option(option="Choose database", command=self.select_db)
+        # sub_menu = file_dropdown.add_submenu("Open Database")
+        file_dropdown.add_option(option="Open Database", command=self.select_db)
+        file_dropdown.add_option(
+            option="Use Default Database", command=self.use_default_db
+        )
+        file_dropdown.add_separator()
+        file_dropdown.add_option(option="Import Data", command=self.import_data)
+        file_dropdown.add_option(option="Create Backup", command=self.create_backup)
 
         # Buttons in View
         view_dropdown = CustomDropdownMenu(master=parent, widget=view_button)
@@ -1464,7 +1477,44 @@ class MyMenuBar(CTkMenuBar):
 
     def open_settings(self):
         SettingsPopup(self.parent, "Settings")
-    
+
+    def create_backup(self):
+        backup_path = self.parent.open_save_file_dialog(
+            title="Save Backup", filetypes=[("SQLite Database (*.db)", "*.db")]
+        )
+
+        if backup_path:
+            if os.path.realpath(backup_path) != os.path.realpath(app_settings.db_path):
+                with database.SQLiteDBManager(app_settings.db_path) as db_handle:
+                    db_handle.create_backup(backup_path)
+                    messagebox.showinfo("Info", "Backup created.")
+            else:
+                messagebox.showerror(
+                    title="Error",
+                    message="Unable to replace the old database with the backup. Choose a different name or a location for the backup.",
+                )
+                # self.create_backup()
+
+    # def progress(self, status, remaining, total):
+    #     print(f"Copied {total-remaining} of {total} pages... status={status}")
+
+    def import_data(self):
+        import_path = self.parent.open_choose_file_dialog(
+            title="Select database", filetypes=[("SQLite Database (*.db)", "*.db")]
+        )
+
+        if import_path:
+            if os.path.realpath(import_path) != os.path.realpath(app_settings.db_path):
+                with database.SQLiteDBManager(import_path) as db_handle:
+                    db_handle.import_data(app_settings.db_path)
+                    self.parent.graph_page.sidebar.update_all()
+                    messagebox.showinfo("Info", "Data imported")
+            else:
+                messagebox.showerror(
+                    title="Error",
+                    message="Unable to import data from the same database. Choose a different database to import from.",
+                )
+
     def use_default_db(self):
         default_filepath = os.path.relpath(app_settings.default_db_path)
 
@@ -1472,15 +1522,14 @@ class MyMenuBar(CTkMenuBar):
             old_filepath = os.path.relpath(app_settings.db_path)
 
         if old_filepath == default_filepath:
-            messagebox.showinfo(
-                "Info", "The default database is already in use."
-            )
+            messagebox.showinfo("Info", "The default database is already in use.")
         else:
-            if messagebox.askokcancel("Use default database?", f"Do you wish to change currently used database ({old_filepath}) to default database ({default_filepath})?"):
+            if messagebox.askokcancel(
+                "Use default database?",
+                f"Do you wish to change currently used database ({old_filepath}) to default database ({default_filepath})?",
+            ):
                 app_settings.db_path = default_filepath
                 self.parent.graph_page.sidebar.update_all()
-
-
 
     def select_db(self):
         new_filepath = self.parent.open_choose_file_dialog("Select database")
@@ -1489,12 +1538,12 @@ class MyMenuBar(CTkMenuBar):
             new_filepath = os.path.relpath(new_filepath)
             old_filepath = os.path.relpath(app_settings.db_path)
 
-            if messagebox.askokcancel("Change database?", f"Do you wish to change currently used database ({old_filepath}) to selected database ({new_filepath})?"):
+            if messagebox.askokcancel(
+                "Change database?",
+                f"Do you wish to change currently used database ({old_filepath}) to selected database ({new_filepath})?",
+            ):
                 app_settings.db_path = new_filepath
-                self.parent.graph_page.sidebar.update_all() 
-
-
-
+                self.parent.graph_page.sidebar.update_all()
 
     def default_db(self):
         default_filepath = os.path.relpath(app_settings.default_db_path)
@@ -1692,7 +1741,6 @@ class SettingsFrame(ctk.CTkFrame):
         )
 
         return setting_frame
-
 
 
 class InfoButton(ctk.CTkButton):
@@ -1962,7 +2010,9 @@ class SettingsPopup(MyPopup):
         graph_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
 
         graph_frame.add_title("Graphs")
-        self.ylims_frame = graph_frame.add_setting("y-axis limits:", app_settings.ylim, self.select_ylim)
+        self.ylims_frame = graph_frame.add_setting(
+            "y-axis limits:", app_settings.ylim, self.select_ylim
+        )
 
         # Bottom frame
         self.pack_bottom_frame()
@@ -1981,7 +2031,9 @@ class SettingsPopup(MyPopup):
         self.destroy()
 
     def _reset_event(self):
-        if messagebox.askokcancel("Reset settings?", "Do you really want to reset settings to default values?"):
+        if messagebox.askokcancel(
+            "Reset settings?", "Do you really want to reset settings to default values?"
+        ):
             self.filepath = app_settings.default_db_path
             self.ylim = app_settings.default_ylim
 
@@ -1989,7 +2041,6 @@ class SettingsPopup(MyPopup):
             self.db_path_frame.winfo_children()[1].configure(text=tail)
 
             self.ylims_frame.winfo_children()[1].configure(text=self.ylim)
-
 
     def select_db(self):
         filepath = self.parent.open_choose_file_dialog("Select database")
