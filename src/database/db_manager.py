@@ -1,8 +1,9 @@
 import sqlite3
 import contextlib
-from typing import List
+from typing import List, Callable
 import re
 import math
+import os
 
 from . import helpers
 
@@ -25,6 +26,7 @@ class SQLiteDBManager:
     def __init__(self, dbpath=DB_FILE_PATH):
         self.dbpath = dbpath
         self.conn = sqlite3.connect(dbpath)
+        # self.conn = None
 
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
             location_id INTEGER PRIMARY KEY NOT NULL,
@@ -42,6 +44,30 @@ class SQLiteDBManager:
             cursor.execute(sql_create_visitor_activity_table)
             self.conn.commit()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._close()
+
+    # def __enter__(self):
+    #     self.conn = sqlite3.connect(self.dbpath)
+    #     return self
+
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     self._close()
+
+    # def __enter__(self):
+    #     self.conn = mysql.connector.connect(user=self.user, password=self.password,
+    #                                        host=self.host, database=self.database)
+    #     self.cursor = self.conn.cursor()
+    #     return self.cursor
+
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     self.conn.commit()
+    #     self.cursor.close()
+    #     self.conn.close()
+
     def _close(self):
         if self.conn:
             self.conn.close()
@@ -51,8 +77,40 @@ class SQLiteDBManager:
         """Closes db connection"""
         self._close()
 
-    
-    def copy_db(self, dest_db_path: str, replace=False):
+    def create_backup(
+        self,
+        backup_path,
+        pages=10,
+        progress: Callable[[int, int, int], object] | None = None,
+    ):
+        """
+        Creates a backup of the database.
+
+        Notes:
+        - Overwrites existing file.
+
+        Parameters:
+        - backup_path: Path where the backup should be created.
+        - pages: The number of pages to copy at a time. If equal to or less than 0,
+            the entire database is copied in a single step.
+        - progress: A callable to report progress. Example:
+            def progress(status, remaining, total):
+                print(f'Copied {total-remaining} of {total} pages...')
+
+        Raises:
+        - `ValueError`: If given backup_path is path to the source of backup.
+            Cannot create a backup if the source and the destination is the same.
+        """
+        if os.path.realpath(self.dbpath) == os.path.realpath(backup_path):
+            # Korjaa! Parempi teksti.
+            raise ValueError(
+                "Backup source and new backup file (backup_path) cannot be the same"
+            )
+
+        with sqlite3.connect(backup_path) as backup_conn:
+            self.conn.backup(backup_conn, pages=pages, progress=progress)
+
+    def import_data(self, dest_db_path: str, replace=False):
         """
         Copies the contents of the current database to a specified destination database.
 
@@ -69,9 +127,16 @@ class SQLiteDBManager:
 
         Raises:
         ---
-        `sqlite3.OperationalError`: If destination database already had `locations`/`visitor_activity` tables, and
+        - `ValueError`: If given dest_db_path is the path to dbpath of the SQLiteDBManager instance.
+        - `sqlite3.OperationalError`: If destination database already had `locations`/`visitor_activity` tables, and
             those tables have an incorrect schema.
         """
+        if os.path.realpath(self.dbpath) == os.path.realpath(dest_db_path):
+            # Korjaa! Parempi teksti.
+            raise ValueError(
+                "Given dest_db_path must be different from dbpath of the SQLiteDBManager instance."
+            )
+
         conflict_clause = "IGNORE"
         if replace:
             conflict_clause = "REPLACE"
@@ -405,7 +470,7 @@ class SQLiteDBManager:
             return True
         else:
             return False
-        
+
     def get_first_time(self, location_id: int | None = None) -> int | None:
         """
         Returns the first epoch timestamp in visitors table with matching
@@ -413,10 +478,7 @@ class SQLiteDBManager:
         """
 
         if not helpers.are_ints(location_id) and location_id is not None:
-            raise TypeError(
-                "Argument 'location_id' must be an integer or None."
-            )
-        
+            raise TypeError("Argument 'location_id' must be an integer or None.")
 
         pstmt = """SELECT epoch_timestamp 
         FROM visitor_activity 
@@ -433,7 +495,7 @@ class SQLiteDBManager:
             else:
                 cursor.execute(stmt)
             result = cursor.fetchone()
-        
+
         if result:
             result = result[0]
 
