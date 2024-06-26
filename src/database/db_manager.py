@@ -24,9 +24,12 @@ MODES = {
 
 class SQLiteDBManager:
     def __init__(self, dbpath=DB_FILE_PATH):
+        """
+        use "with SQLiteDBManager() as db_handle:"
+        """
+        
         self.dbpath = dbpath
         self.conn = sqlite3.connect(dbpath)
-        # self.conn = None
 
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
             location_id INTEGER PRIMARY KEY NOT NULL,
@@ -43,30 +46,15 @@ class SQLiteDBManager:
             cursor.execute(sql_create_locations_table)
             cursor.execute(sql_create_visitor_activity_table)
             self.conn.commit()
+        
+        self._close()
 
     def __enter__(self):
+        self.conn = sqlite3.connect(self.dbpath)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._close()
-
-    # def __enter__(self):
-    #     self.conn = sqlite3.connect(self.dbpath)
-    #     return self
-
-    # def __exit__(self, exc_type, exc_val, exc_tb):
-    #     self._close()
-
-    # def __enter__(self):
-    #     self.conn = mysql.connector.connect(user=self.user, password=self.password,
-    #                                        host=self.host, database=self.database)
-    #     self.cursor = self.conn.cursor()
-    #     return self.cursor
-
-    # def __exit__(self, exc_type, exc_val, exc_tb):
-    #     self.conn.commit()
-    #     self.cursor.close()
-    #     self.conn.close()
 
     def _close(self):
         if self.conn:
