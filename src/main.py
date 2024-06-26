@@ -356,10 +356,7 @@ class SideBarGraph(ctk.CTkFrame):
         default_location = constants.DEFAULT_LOCATION
         unique_dates = []
 
-        db_handle = None
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
-
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             locations_dict = db_handle.get_locations_dict()
 
             if locations_dict:
@@ -367,9 +364,6 @@ class SideBarGraph(ctk.CTkFrame):
                 default_location = next(iter(locations_dict.keys()))
 
             unique_dates = db_handle.get_unique_dates(locations.get(default_location))
-        finally:
-            if db_handle:
-                db_handle.__del__()
 
         return locations, default_location, unique_dates
 
@@ -463,8 +457,7 @@ class Graph(ctk.CTkFrame):
         self.is_drawn = True
 
     def _get_graph_data(self) -> bool:
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             if self.time_mode == "Calendar":
                 search_start, search_end = self._get_search_range()
                 visitors = db_handle.get_data_by_mode(
@@ -500,8 +493,6 @@ class Graph(ctk.CTkFrame):
                 timestamps = database.helpers.calculate_timestamps(
                     search_start, search_end, 60 * 60
                 )
-        finally:
-            db_handle.__del__()
 
         self._set_title_labels(timestamps)
 
@@ -541,13 +532,10 @@ class Graph(ctk.CTkFrame):
         return search_start, search_end
 
     def _get_all_search_start(self) -> int | None:
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
             )
-        finally:
-            db_handle.__del__()
 
         search_start_dt = utils.top_of_the_hour(
             utils.get_localized_datetime(search_start)
@@ -556,13 +544,10 @@ class Graph(ctk.CTkFrame):
         return utils.datetime_to_epoch(search_start_dt)
 
     def get_first(self) -> datetime | None:
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
             )
-        finally:
-            db_handle.__del__()
 
         if search_start:
             search_start = utils.get_localized_datetime(search_start)
@@ -945,10 +930,10 @@ class GraphTab:
         """Removes old highlighted dates from the calendar and highlights dates in the
         given dates list."""
         self.cal.dates = dates
-        mindate=self.graph.get_first()
-        maxdate=date.today()
+        mindate = self.graph.get_first()
+        maxdate = date.today()
         if not mindate:
-            mindate=maxdate
+            mindate = maxdate
         self.cal.configure(mindate=mindate, maxdate=maxdate)
         self.cal.highlight_dates()
 
@@ -1035,14 +1020,11 @@ class GraphTab:
     def change_location_event(self, value):
         self.graph.location_name = value
 
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             unique_dates = db_handle.get_unique_dates(
                 self.graph.locations.get(self.graph.location_name)
             )
             self.update_cal(unique_dates)
-        finally:
-            db_handle.__del__()
 
 
 class DropdownAndLabel(ctk.CTkFrame):
@@ -1201,13 +1183,10 @@ class SideBarDatabase(ctk.CTkFrame):
         self.main_frame = main_frame
         self.unique_dates = []
 
-        try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             self.unique_dates = db_handle.get_unique_dates(
                 constants.RETRIEVAL_LOCATIONS.get(constants.DEFAULT_RETRIEVAL_LOCATION)
             )
-        finally:
-            db_handle.__del__()
 
         self.pack(fill=ctk.Y, side=ctk.LEFT)
         self.pack_propagate(False)
@@ -1297,44 +1276,39 @@ class SideBarDatabase(ctk.CTkFrame):
 
     def _get_data_in_intervals(self, interval: int, thread_id: int):
         try:
-            db_handle = database.SQLiteDBManager(app_settings.db_path)
+            with database.SQLiteDBManager(app_settings.db_path) as db_handle:
+                # Collect data until thread_id changes
+                while thread_id == self.thread_id:
+                    start_time = time.perf_counter()
 
-            # Collect data until thread_id changes
-            while thread_id == self.thread_id:
-                start_time = time.perf_counter()
-
-                data = retrieve_data.get_data()
-                location: Location
-                for location in data:
-                    added = db_handle.add_data(
-                        location.location_id,
-                        location.location_name,
-                        location.epoch_timestamp,
-                        location.location_visitors,
-                    )
-                    if not added:
-                        self.write_to_textbox(
-                            f"Unable to add data to the database. A record with the "
-                            f"same timestamp already exists. "
-                            f"Discarded data: \n{self._format_data(location)}\n\n"
+                    data = retrieve_data.get_data()
+                    location: Location
+                    for location in data:
+                        added = db_handle.add_data(
+                            location.location_id,
+                            location.location_name,
+                            location.epoch_timestamp,
+                            location.location_visitors,
                         )
-                    else:
-                        self.write_to_textbox(
-                            f"Added to the database: {self._format_data(location)}\n\n"
-                        )
+                        if not added:
+                            self.write_to_textbox(
+                                f"Unable to add data to the database. A record with the "
+                                f"same timestamp already exists. "
+                                f"Discarded data: \n{self._format_data(location)}\n\n"
+                            )
+                        else:
+                            self.write_to_textbox(
+                                f"Added to the database: {self._format_data(location)}\n\n"
+                            )
 
-                func_time = time.perf_counter() - start_time
-                sleep_time = max(0, (interval - func_time))
-                time.sleep(sleep_time)  # Sleep for remaining time
+                    func_time = time.perf_counter() - start_time
+                    sleep_time = max(0, (interval - func_time))
+                    time.sleep(sleep_time)  # Sleep for remaining time
         except Exception as e:
             self.write_to_textbox(
                 f"Data collection aborted. Restarting app might be necessary. Database error: {e}\n\n"
             )
             self.stop_collecting_data()  # Toggle data collection button off
-        finally:
-            db_handle.__del__()
-
-        # return
 
     def _format_data(self, location_data: Location):
         formatted_str = f"""
