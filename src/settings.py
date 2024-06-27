@@ -7,10 +7,12 @@ class Settings():
         # Default settings
         self.default_db_path = database.DB_FILE_PATH
         self.default_ylim = (-0.0001, None)
+        self.default_ymode = "Auto Limit"
 
         # Current settings
         self.db_path = database.DB_FILE_PATH
         self.ylim = (-0.0001, None)
+        self.ymode = "Auto Limit"
 
     def set_path_to_default(self):
         self.db_path = self.default_db_path
