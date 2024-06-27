@@ -81,5 +81,9 @@ RED = "#f01a1a"
 YELLOW = "#dede47"
 
 DARK_GREY_SETTINGS_BUTTON = "#302c2c"
+DARK_BLUE_HOVER_COLOR = "#144870"
 
 PAD = 8
+
+YMODES = ["Auto Limit", "No Limit", "Select Limit"]
+
