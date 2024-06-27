@@ -190,7 +190,7 @@ class GraphPage(ctk.CTkFrame):
             self._arrange_graphs()
 
         for graph_num in range(self.graph_amount):
-            self.all_graphs[graph_num].draw_graph(self.graph_amount)
+            self.all_graphs[graph_num].draw_graph(self.graph_amount, lambda: self._get_ylim())
 
         self.active_graph_amount = self.graph_amount
 
@@ -199,9 +199,55 @@ class GraphPage(ctk.CTkFrame):
             self._arrange_graphs()
 
         if self.graph_amount >= (graph_num + 1):
-            self.all_graphs[graph_num].draw_graph(self.graph_amount)
+            self.all_graphs[graph_num].draw_graph(self.graph_amount, lambda: self._get_ylim())
 
         self.active_graph_amount = self.graph_amount
+
+    def _get_ylim(self):
+        if app_settings.ymode == "Auto Limit":
+            ylim_upper = None
+
+            for graph_num in range(self.graph_amount):
+                if self.all_graphs[graph_num].is_drawn:
+                    temp_upper = self.all_graphs[graph_num].ax.get_ylim()[1]
+
+                    if ylim_upper:
+                       if temp_upper > ylim_upper:
+                           ylim_upper = temp_upper
+                    else:
+                        ylim_upper = temp_upper
+
+            ylim = (app_settings.ylim[0], ylim_upper)
+        elif app_settings.ymode == "No Limit":
+            ylim = app_settings.default_ylim
+        elif app_settings.ymode == "Select Limit":
+            ylim = app_settings.ylim
+
+        return ylim
+
+    # def _get_ylim(self, cur_graph_num: int):
+    #     if app_settings.ymode == "Auto Limit":
+    #         ylim_upper = None
+
+    #         for graph_num in range(self.graph_amount):
+    #             if cur_graph_num != graph_num and self.all_graphs[graph_num].is_drawn:
+    #                 temp_upper = self.all_graphs[graph_num].ax.get_ylim()
+
+    #                 if ylim_upper:
+    #                    if temp_upper > ylim_upper:
+    #                        ylim_upper = temp_upper
+    #                 else:
+    #                     ylim_upper = temp_upper
+
+    #                 print("ylim:", ylim_upper)
+
+    #         ylim = (app_settings.ylim[0], ylim_upper)
+    #     elif app_settings.ymode == "No Limit":
+    #         ylim = app_settings.default_ymode
+    #     elif app_settings.ymode == "Select Limit":
+    #         ylim = app_settings.ylim
+
+    #     return ylim
 
     def _arrange_graphs(self):
         self.label.destroy()
@@ -426,7 +472,7 @@ class Graph(ctk.CTkFrame):
         # to match surrounding color. (These lines seem to only show up with certain fig sizes)
         self.canvas.get_tk_widget().configure(background=constants.LIGHT_GREY)
 
-    def draw_graph(self, graph_amount: int = 1):
+    def draw_graph(self, graph_amount: int = 1, get_ylim_command: Callable | None =None):
         """If graph amount 4 only every other value is used for bar graph"""
         self._get_graph_data()
         self._set_graph_settings(graph_amount)
@@ -451,6 +497,10 @@ class Graph(ctk.CTkFrame):
                 color=self.element_color,
                 # marker=".",
             )
+
+        if get_ylim_command:
+            self.ax.set_ylim(*get_ylim_command())
+        else:
             self.ax.set_ylim(-0.0001, None)
 
         self.canvas.draw()
@@ -1664,7 +1714,7 @@ class SettingsFrame(ctk.CTkFrame):
 
         return label
 
-    def add_setting(
+    def add_setting_button(
         self,
         label_text: str,
         button_text: str,
@@ -1715,6 +1765,104 @@ class SettingsFrame(ctk.CTkFrame):
         )
 
         return setting_frame
+
+    def add_setting_dropdown(
+        self,
+        label_text: str,
+        values: list,
+        default_value: str,
+        command,
+        font_size=12,
+        label_width=125,
+        pady=8,
+        padx=8,
+        padx_inner=20,
+        fill="x",
+        **kwargs,
+    ):
+        setting_dropdown = SettingDropdown(
+            self,
+            label_text,
+            values,
+            default_value,
+            command,
+            font_size,
+            label_width,
+            pady,
+            padx,
+            padx_inner,
+            fill,
+            **kwargs,
+        )
+        setting_dropdown.pack(side=ctk.TOP, anchor="w", fill=ctk.X)
+
+        return setting_dropdown
+
+
+class SettingDropdown(ctk.CTkFrame):
+    def __init__(
+        self,
+        parent,
+        label_text: str,
+        values: list,
+        default_value: str,
+        command,
+        font_size=12,
+        label_width=125,
+        pady=8,
+        padx=8,
+        padx_inner=20,
+        fill="x",
+        **kwargs,
+    ):
+        # Frame
+        super().__init__(parent, fg_color="transparent")
+
+        # Label
+        self.label = ctk.CTkLabel(
+            self, text=label_text, anchor="w", height=0, width=label_width
+        )
+        self.label.cget("font").configure(size=font_size)
+        self.label.pack(side=ctk.LEFT, anchor="w", padx=(padx_inner, 0), pady=(0, pady))
+        # Dropdown
+        border_frame = ctk.CTkFrame(
+            self,
+            width=0,
+            height=0,
+            corner_radius=0,
+            border_color="black",
+            border_width=1,
+        )
+        border_frame.pack(
+            side=ctk.LEFT,
+            anchor="w",
+            padx=(0, padx),
+            pady=(0, pady),
+            fill=fill,
+            expand=True,
+        )
+        self.variable: ctk.StringVar = ctk.StringVar(value=default_value)
+        self.dropdown = ctk.CTkOptionMenu(
+            border_frame,
+            values=values,
+            command=command,
+            variable=self.variable,
+            font=self.label.cget("font"),
+            dropdown_font=self.label.cget("font"),
+            fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
+            button_color=constants.DARK_GREY_SETTINGS_BUTTON,
+            button_hover_color=constants.DARK_BLUE_HOVER_COLOR,
+            corner_radius=0,
+            **kwargs,
+        )
+        self.dropdown.pack(
+            side=ctk.LEFT,
+            anchor="w",
+            padx=1,
+            pady=1,
+            fill="both",
+            expand=True,
+        )
 
 
 class InfoButton(ctk.CTkButton):
@@ -1944,15 +2092,18 @@ class SettingsPopup(MyPopup):
         super().__init__(
             parent,
             title,
-            geometry="400x300",
-            minsize=(400, 300),
+            geometry="400x400",
+            minsize=(400, 400),
             maxsize=(600, 400),
             *args,
             **kwargs,
         )
         self.parent = parent
         self.filepath = app_settings.db_path
-        self.ylim = app_settings.ylim
+        self.ylim: tuple[float, float] = app_settings.ylim
+        self.ymode = app_settings.ymode
+
+        self.pack_propagate(True)
 
         pad = 8
 
@@ -1974,18 +2125,24 @@ class SettingsPopup(MyPopup):
 
         db_frame.add_title("Database")
         _, tail = ntpath.split(app_settings.db_path)
-        self.db_path_frame = db_frame.add_setting(
+        self.db_path_frame = db_frame.add_setting_button(
             "Database file:", tail, self.select_db
         )
-        db_frame.add_setting("", "Select Default Database", self.default_db, fill=None)
+        db_frame.add_setting_button(
+            "", "Use Default Database", self.default_db, fill=None
+        )
 
         # Graphs
         graph_frame = SettingsFrame(self)
-        graph_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=pad)
-
+        graph_frame.pack(
+            side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=(pad, 2 * pad)
+        )
         graph_frame.add_title("Graphs")
-        self.ylims_frame = graph_frame.add_setting(
-            "y-axis limits:", app_settings.ylim, self.select_ylim
+        self.settings_dropdown = graph_frame.add_setting_dropdown(
+            "y-axis limits:",
+            constants.YMODES,
+            default_value=self.get_ylim_text(),
+            command=self._select_ylim_event,
         )
 
         # Bottom frame
@@ -1994,13 +2151,39 @@ class SettingsPopup(MyPopup):
         self.add_bottom_button("OK", self._ok_event)
         self.add_bottom_button("Reset", self._reset_event)
 
+    def _select_ylim_event(self, value):
+        if value == "Auto Limit":
+            self.ymode = value
+        elif value == "No Limit":
+            self.ymode = value
+            self.ylim = (self.ylim[0], None)
+        elif value == "Select Limit":
+            self.settings_dropdown.variable.set(self.get_ylim_text())
+            dialog = ctk.CTkInputDialog(text="Type in a number:", title="Test")
+            selected_value = dialog.get_input()
+            self.grab_set()
+            try:
+                if selected_value:
+                    selected_value = float(selected_value)
+                    self.settings_dropdown.variable.set(selected_value)
+                    self.ymode = value
+                    self.ylim = (self.ylim[0], selected_value)
+            except ValueError:
+                messagebox.showerror(
+                    "Error", "No changes made. Please enter a valid number."
+                )
+                self.grab_set()
+
     def _ok_event(self):
         if self.filepath and self.filepath != os.path.relpath(app_settings.db_path):
             app_settings.db_path = self.filepath
             self.parent.graph_page.sidebar.update_all()
 
-        if self.ylim:
+        if self.ylim and (
+            self.ylim != app_settings.ylim or self.ymode != app_settings.ymode
+        ):
             app_settings.ylim = self.ylim
+            app_settings.ymode = self.ymode
 
         self.destroy()
 
@@ -2008,13 +2191,14 @@ class SettingsPopup(MyPopup):
         if messagebox.askokcancel(
             "Reset settings?", "Do you really want to reset settings to default values?"
         ):
-            self.filepath = app_settings.default_db_path
             self.ylim = app_settings.default_ylim
+            self.ymode = app_settings.default_ymode
+            self.filepath = app_settings.default_db_path
+
+            self.settings_dropdown.variable.set(self.get_ylim_text())
 
             _, tail = ntpath.split(self.filepath)
             self.db_path_frame.winfo_children()[1].configure(text=tail)
-
-            self.ylims_frame.winfo_children()[1].configure(text=self.ylim)
 
     def select_db(self):
         filepath = self.parent.open_choose_file_dialog("Select database")
@@ -2042,55 +2226,12 @@ class SettingsPopup(MyPopup):
             self.db_path_frame.winfo_children()[1].configure(text=tail)
             self.filepath = default_filepath
 
-    def select_ylim(self):
-        print("Select ylim")
-
-
-class SelectDBPopup(MyPopup):
-    def __init__(self, parent: App, title: str, *args, **kwargs):
-        super().__init__(
-            parent,
-            title,
-            geometry="400x300",
-            minsize=(400, 300),
-            # maxsize=(250, 300),
-            *args,
-            **kwargs,
-        )
-        self.parent = parent
-        self.db_name = None
-        self.db_directory = None
-
-        # Settings label
-        label = ctk.CTkLabel(
-            self,
-            text="Choose database",
-            anchor="w",
-            padx=5,
-            pady=10,
-            bg_color=constants.LIGHT_GREY,
-        )
-        label.cget("font").configure(size=20, weight="bold")
-        label.pack(
-            side=ctk.TOP,
-            anchor="w",
-            fill=ctk.BOTH,
-            padx=constants.PAD,
-            pady=constants.PAD,
-        )
-
-        self.pack_bottom_frame()
-        self.add_cancel_button()
-        self.add_bottom_button("OK", self._ok_event)
-
-    def _select_db_event(self):
-        filepath = self.parent.open_choose_file_dialog("Select database")
-
-    def _default_db_event(self):
-        print("default db event")
-
-    def _ok_event(self):
-        print("OK event")
+    def get_ylim_text(self) -> int | float | str:
+        "Get text for button"
+        if self.ymode == "Select Limit":
+            return self.ylim[1]
+        else:
+            return self.ymode
 
 
 def main():
