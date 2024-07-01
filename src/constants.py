@@ -43,7 +43,7 @@ TEXTBOX_WIDTH = 350
 DATE_ENTRY_FONT_SMALLNESS = 7  # Smaller number -> Smaller font size
 CALENDAR_FONT_SMALLNESS = 12  # Smaller number -> Smaller font size
 
-TIME_MODES = ["Calendar", "Days of the week", "Time range"]
+TIME_MODES = ["Calendar", "Daily Average", "Time Range"]
 DEFAULT_TIME_MODE = "Calendar"
 
 LIGHT_GREY = "#333333"
