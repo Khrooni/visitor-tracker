@@ -190,7 +190,10 @@ class GraphPage(ctk.CTkFrame):
             self._arrange_graphs()
 
         for graph_num in range(self.graph_amount):
-            self.all_graphs[graph_num].draw_graph(self.graph_amount, lambda: self._get_ylim())
+            self.all_graphs[graph_num].draw_graph(self.graph_amount)
+
+        if app_settings.ymode == "Auto Limit":
+            self.set_all_ylims(*self._get_ylim())
 
         self.active_graph_amount = self.graph_amount
 
@@ -199,55 +202,55 @@ class GraphPage(ctk.CTkFrame):
             self._arrange_graphs()
 
         if self.graph_amount >= (graph_num + 1):
-            self.all_graphs[graph_num].draw_graph(self.graph_amount, lambda: self._get_ylim())
+            self.all_graphs[graph_num].draw_graph(self.graph_amount)
+
+        if app_settings.ymode == "Auto Limit":
+            self.set_all_ylims(*self._get_ylim())
 
         self.active_graph_amount = self.graph_amount
 
-    def _get_ylim(self):
+    def _get_ylim(self) -> tuple[float, float]:
+        "Returns ymode appropriate ylim"
         if app_settings.ymode == "Auto Limit":
-            ylim_upper = None
-
-            for graph_num in range(self.graph_amount):
-                if self.all_graphs[graph_num].is_drawn:
-                    temp_upper = self.all_graphs[graph_num].ax.get_ylim()[1]
-
-                    if ylim_upper:
-                       if temp_upper > ylim_upper:
-                           ylim_upper = temp_upper
-                    else:
-                        ylim_upper = temp_upper
-
-            ylim = (app_settings.ylim[0], ylim_upper)
-        elif app_settings.ymode == "No Limit":
-            ylim = app_settings.default_ylim
+            ylim = self._get_auto_ylim()
         elif app_settings.ymode == "Select Limit":
             ylim = app_settings.ylim
+        elif app_settings.ymode == "No Limit":
+            ylim = app_settings.default_ylim
 
         return ylim
 
-    # def _get_ylim(self, cur_graph_num: int):
-    #     if app_settings.ymode == "Auto Limit":
-    #         ylim_upper = None
+    def _get_auto_ylim(self) -> tuple[float, float]:
+        ylim_upper = None
+        margin = 0.05
 
-    #         for graph_num in range(self.graph_amount):
-    #             if cur_graph_num != graph_num and self.all_graphs[graph_num].is_drawn:
-    #                 temp_upper = self.all_graphs[graph_num].ax.get_ylim()
+        for graph_num in range(self.graph_amount):
+            if self.all_graphs[graph_num].y_values:
+                temp_upper = max(self.all_graphs[graph_num].y_values)
 
-    #                 if ylim_upper:
-    #                    if temp_upper > ylim_upper:
-    #                        ylim_upper = temp_upper
-    #                 else:
-    #                     ylim_upper = temp_upper
+                if ylim_upper:
+                    if temp_upper and temp_upper > ylim_upper:
+                        ylim_upper = temp_upper
+                else:
+                    ylim_upper = temp_upper
 
-    #                 print("ylim:", ylim_upper)
+        if ylim_upper:
+            ylim_upper = ylim_upper * (margin + 1)
 
-    #         ylim = (app_settings.ylim[0], ylim_upper)
-    #     elif app_settings.ymode == "No Limit":
-    #         ylim = app_settings.default_ymode
-    #     elif app_settings.ymode == "Select Limit":
-    #         ylim = app_settings.ylim
+        return (app_settings.ylim[0], ylim_upper)
 
-    #     return ylim
+    def set_all_ylims(
+        self, lower_ylim: float | None, upper_ylim: float | None, draw=True
+    ):
+        "Sets ylims of all graphs on screen and redraws them."
+
+
+        for graph_num in range(self.graph_amount):
+            self.all_graphs[graph_num].ax.set_ylim(lower_ylim, upper_ylim)
+
+            if draw:
+                self.all_graphs[graph_num].canvas.draw()
+                self.all_graphs[graph_num].is_drawn = True
 
     def _arrange_graphs(self):
         self.label.destroy()
@@ -472,8 +475,8 @@ class Graph(ctk.CTkFrame):
         # to match surrounding color. (These lines seem to only show up with certain fig sizes)
         self.canvas.get_tk_widget().configure(background=constants.LIGHT_GREY)
 
-    def draw_graph(self, graph_amount: int = 1, get_ylim_command: Callable | None =None):
-        """If graph amount 4 only every other value is used for bar graph"""
+    def draw_graph(self, graph_amount: int = 1):
+        """If graph amount is 4, only every other value is used for bar graph"""
         self._get_graph_data()
         self._set_graph_settings(graph_amount)
 
@@ -498,10 +501,13 @@ class Graph(ctk.CTkFrame):
                 # marker=".",
             )
 
-        if get_ylim_command:
-            self.ax.set_ylim(*get_ylim_command())
-        else:
-            self.ax.set_ylim(-0.0001, None)
+        if app_settings.ymode == "Select Limit":
+            self.ax.set_ylim(*app_settings.ylim)
+        elif app_settings.ymode == "Auto Limit":
+            # KORJAA! Change later. Probably no need to draw the graphs yet, since they will
+            # be redrawn in set_all_ylims(). Cannot draw yet because need the
+            # ylims of all of the needed graphs otherwise graphs will be drawn twice.
+            pass
 
         self.canvas.draw()
         self.is_drawn = True
@@ -520,7 +526,7 @@ class Graph(ctk.CTkFrame):
                 timestamps = database.helpers.calculate_timestamps(
                     search_start, search_end, 60 * 60
                 )
-            elif self.time_mode == "Days of the week":
+            elif self.time_mode == "Daily Average":
                 visitors = db_handle.get_average_visitors(
                     self.locations.get(self.location_name),
                     constants.WEEKDAYS.get(self.weekday),
@@ -530,7 +536,7 @@ class Graph(ctk.CTkFrame):
                 # jotka muutetaan tunneiksi convert_for_day_graphilla
                 timestamps = utils.day_epochs()
 
-            elif self.time_mode == "Time range":
+            elif self.time_mode == "Time Range":
                 time_r_interval = 60 * 60
                 search_start, search_end = self._get_search_range()
                 visitors = db_handle.get_data_by_mode(
@@ -557,8 +563,8 @@ class Graph(ctk.CTkFrame):
         if self.time_mode == "Calendar":
             search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
             search_end = utils.next_time(search_start, days=1)  # +1 day
-        elif self.time_mode == "Time range":
-            print("Time range:", self.time_range)
+        elif self.time_mode == "Time Range":
+            print("Time Range:", self.time_range)
 
             search_end_dt = utils.top_of_the_hour(datetime.now())
             search_end = utils.datetime_to_epoch(search_end_dt)
@@ -622,7 +628,7 @@ class Graph(ctk.CTkFrame):
         for spine in self.ax.axes.spines.values():
             spine.set_edgecolor(self.edge_color)
 
-        if self.time_mode == "Time range":
+        if self.time_mode == "Time Range":
 
             locator = mdates.AutoDateLocator(tz=constants.DEFAULT_TIMEZONE)
             formatter = mdates.ConciseDateFormatter(
@@ -713,12 +719,12 @@ class Graph(ctk.CTkFrame):
             self.title = f"{self.location_name}, {day}, {date}"
             self.x_label = "Hour"
             self.y_label = self.graph_mode
-        elif self.time_mode == "Days of the week":
+        elif self.time_mode == "Daily Average":
             self.title = f"{self.location_name}, {self.weekday}"
             self.x_label = "Hour"
             self.y_label = self.graph_mode
 
-        elif self.time_mode == "Time range":
+        elif self.time_mode == "Time Range":
             self.title = f"{self.location_name}"
             self.x_label = ""
             self.y_label = self.graph_mode
@@ -995,7 +1001,6 @@ class GraphTab:
         )
 
     def plot_single_graph_event(self):
-        print("plot single graph")
         self.graph_page.draw_single_graph(self.graph_num)
 
         # if self.graph_page.graph_amount >= self.graph.graph_num:
@@ -1020,7 +1025,6 @@ class GraphTab:
         self.graph.graph_mode = value
 
     def change_time_mode_event(self, value):
-        print("Set time mode to: ", value)
         if value == "Calendar":
             self.calendar_frame.lift()
             self.graph_mode_menu.set_menu_values(
@@ -1032,7 +1036,7 @@ class GraphTab:
                 constants.GRAPH_TYPES, constants.DEFAULT_GRAPH_TYPE
             )
             self.graph.graph_type = constants.DEFAULT_GRAPH_TYPE
-        elif value == "Days of the week":
+        elif value == "Daily Average":
             self.weekday_frame.lift()
             self.graph_mode_menu.set_menu_values(
                 constants.WEEKDAY_TIME_RANGE_GRAPH_MODES, constants.DEFAULT_GRAPH_MODE
@@ -1044,7 +1048,7 @@ class GraphTab:
             )
             self.graph.graph_type = constants.DEFAULT_GRAPH_TYPE
 
-        elif value == "Time range":
+        elif value == "Time Range":
             self.time_range_frame.lift()
 
             self.graph_mode_menu.set_menu_values(
@@ -1060,11 +1064,9 @@ class GraphTab:
         self.graph.time_mode = value
 
     def change_weekday_event(self, value):
-        print("Set weekday to: ", value)
         self.graph.weekday = value
 
     def change_time_range_event(self, value):
-        print("Set time range to: ", value)
         self.graph.time_range = value
 
     def change_location_event(self, value):
@@ -1092,7 +1094,7 @@ class DropdownAndLabel(ctk.CTkFrame):
 
         # Graph label
         self.label = ctk.CTkLabel(self, text=label, anchor="w")
-        self.label.pack(side=ctk.TOP, padx=0, pady=(0, 5))
+        self.label.pack(side=ctk.TOP, padx=0, pady=(0, 2), fill=ctk.X)
         # Graph dropdown menu
         self.option_menu = ctk.CTkOptionMenu(
             self,
@@ -1473,15 +1475,15 @@ class MyMenuBar(CTkMenuBar):
         file_dropdown.add_option("Save Figure", command=self.save_fig)
         file_dropdown.add_option("Save Single Graph", command=self.save_single_graph)
         file_dropdown.add_separator()
-        # Choose database submenu
-        # sub_menu = file_dropdown.add_submenu("Open Database")
-        file_dropdown.add_option(option="Open Database", command=self.select_db)
+        # Import data / Create Backup buttons
+        file_dropdown.add_option(option="Import Data", command=self.import_data)
+        file_dropdown.add_option(option="Create Backup", command=self.create_backup)
+        file_dropdown.add_separator()
+        # Change database buttons
+        file_dropdown.add_option(option="Change Database", command=self.select_db)
         file_dropdown.add_option(
             option="Use Default Database", command=self.use_default_db
         )
-        file_dropdown.add_separator()
-        file_dropdown.add_option(option="Import Data", command=self.import_data)
-        file_dropdown.add_option(option="Create Backup", command=self.create_backup)
 
         # Buttons in View
         view_dropdown = CustomDropdownMenu(master=parent, widget=view_button)
@@ -1595,7 +1597,6 @@ class MyMenuBar(CTkMenuBar):
             )
 
     def save_fig(self):
-        print("Save fig")
         drawn_graphs = self.parent.graph_page.get_drawn_graphs()
         if drawn_graphs:
 
@@ -2139,7 +2140,7 @@ class SettingsPopup(MyPopup):
         )
         graph_frame.add_title("Graphs")
         self.settings_dropdown = graph_frame.add_setting_dropdown(
-            "y-axis limits:",
+            "y-axis upper bound:",
             constants.YMODES,
             default_value=self.get_ylim_text(),
             command=self._select_ylim_event,
