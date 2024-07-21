@@ -1,13 +1,23 @@
+import calendar
 from datetime import datetime, timedelta
+import time
+from typing import Callable, Any
+
 from dateutil.relativedelta import relativedelta
 import pytz
-import time
-import calendar
-from typing import Callable, Any
 import screeninfo
 
 
-def get_monitor_from_coord(x: int, y: int) -> screeninfo.Monitor:
+def get_monitor(x: int, y: int) -> screeninfo.Monitor:
+    """Retrieves Monitor of the given x- and y-coordinates.
+
+    :param x int: x-coordinate
+    :type x: int
+    :param y: y-coordinate
+    :type y: int
+    :return:
+    :rtype: screeninfo.Monitor
+    """
     monitors = screeninfo.get_monitors()
 
     for monitor in reversed(monitors):
