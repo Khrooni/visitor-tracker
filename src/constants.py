@@ -75,6 +75,8 @@ SQUARE_GREEN = "#809372"
 SQUARE_RED = "#d45252"
 SQUARE_YELLOW = "#fbc070"
 
+GRAPH_COLORS = [SQUARE_BLUE, SQUARE_GREEN, SQUARE_RED, SQUARE_YELLOW]
+
 BLUE = "#6c95d9"
 GREEN = "#6be014"
 RED = "#f01a1a"
@@ -87,3 +89,9 @@ PAD = 8
 
 YMODES = ["Auto Limit", "No Limit", "Select Limit"]
 
+DB_FILETYPES = [("SQLite Database (*.db)", "*.db")]
+DB_DEFAULTEXTENSION = DB_FILETYPES[0][1]
+DB_INITIALDIR= "src\\database"
+
+IMG_FILETYPES = [("PNG (*.png)", "*.png"), ("JPEG (*.jpg)", "*.jpg")]
+IMG_DEFAULTEXTENSION = IMG_FILETYPES[0][1]
