@@ -1,28 +1,29 @@
-from tkcalendar import DateEntry
+# from datetime import datetime, date
+import datetime
+
+# from dateutil.rrule import rrule, YEARLY, MONTHLY, DAILY, HOURLY
+import ntpath
+import os
+import threading
+import time
+
+# import tkinter as tk
+from tkinter import filedialog, messagebox
+import traceback
+from typing import Any
 
 import customtkinter as ctk
-import tkinter as tk
-from tkinter import filedialog, messagebox
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
-from PIL import Image, ImageTk
+import numpy as np
+from PIL import Image
+import requests
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from matplotlib.lines import Line2D
-import matplotlib.ticker as mticker
+
+# from matplotlib.lines import Line2D
+# import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
-
-
-from dateutil.rrule import rrule, YEARLY, MONTHLY, DAILY, HOURLY
-from datetime import datetime, date
-import numpy as np
-import pytz
-import threading
-import time
-from typing import Callable, Any
-import ntpath
-import os
-
 
 import constants
 import database
@@ -30,6 +31,7 @@ import database.helpers
 import retrieve_data
 from retrieve_data import Location
 import utils
+from utils import DropdownAndLabel, InfoButton, MyPopup, CustomDateEntry
 from settings import Settings
 
 
@@ -51,23 +53,24 @@ class App(ctk.CTk):
 
         ctk.set_appearance_mode("Dark")
 
-        # Create bad menubar
+        # Create menubar
         self.menu = MyMenuBar(self)
 
-        # Create pages
-        self.graph_page = GraphPage(self)
-        self.database_page = DatabasePage(self)
-
-        # Create Frame for pages
+        # Create Frame for pages (otherwise pages overlap menubar)
         container = ctk.CTkFrame(self)
         container.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
 
+        # Create pages
+        self.pages: dict[str, GraphPage | DatabasePage] = {}
+        self.pages["graph"] = GraphPage(container)
+        self.pages["database"] = DatabasePage(container)
+
         # Place pages in Frame
-        self.graph_page.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
-        self.database_page.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
+        self.pages.get("graph").place(x=0, y=0, relwidth=1, relheight=1)
+        self.pages.get("database").place(x=0, y=0, relwidth=1, relheight=1)
 
         # Bring graph page on top
-        self.show_graph_page()
+        self.lift_page("graph")
 
         # run
         self.mainloop()
@@ -80,74 +83,31 @@ class App(ctk.CTk):
 
         left = int(display_width / 2 - window_width / 2)
         top = int(display_height / 2 - window_height / 2)
+
         return (left, top)
 
-    def show_graph_page(self):
-        self.graph_page.lift()
-
-    def show_database_page(self):
-        self.database_page.lift()
-
-    def open_save_file_dialog(
-        self,
-        confirmoverwrite: bool | None = True,
-        title="Save Image",
-        filetypes=[("PNG (*.png)", "*.png"), ("JPEG (*.jpg)", "*.jpg")],
-    ):
+    def lift_page(self, page_name: str):
         """
-        Open choose filename file dialog
+        Lift the page responding to the given page_name.
 
-        Parameters:
-        ---
-        confirmoverwrite (bool, None):
-        title (str, optional): The title of the file dialog window. Defaults to "Save Image".
-        filetypes (list of tuple, optional): Each tuple contains the file type description and the corresponding file extension.
-                filetypes[0][1] used as defaultextension.
-
-        Returns:
-        ---
-        str: The selected file path and filetype. (example: C:/Desktop/test.png)
+        :param page_name: dictionary key for the pages dictionary
+        :type page_name: str
+        :raises ValueError: If dictionary didn't have a key matching the page_name.
         """
-        if filetypes:
-            defaultextension = filetypes[0][1]
+        page = self.pages.get(page_name)
 
-        file_path_type = filedialog.asksaveasfilename(
-            confirmoverwrite=confirmoverwrite,
-            defaultextension=defaultextension,
-            title=title,
-            filetypes=filetypes,
-        )
+        if not page:
+            raise ValueError("Invalid page_name. Given page_name not in the dictionary")
 
-        return file_path_type
-
-    def open_choose_file_dialog(
-        self,
-        title="Select a file",
-        filetypes=[
-            ("SQLite Database (*.db)", "*.db"),
-        ],
-    ):
-        if filetypes:
-            defaultextension = filetypes[0][1]
-
-        file_path_name = filedialog.askopenfilename(
-            defaultextension=defaultextension,
-            filetypes=filetypes,
-            initialdir="src\database",
-            title=title,
-        )
-
-        return file_path_name
+        page.lift()
 
 
 class GraphPage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, corner_radius=0)
-        self.pack(side=ctk.TOP, fill=ctk.BOTH, expand="true")
 
         self.all_graphs: list[Graph] = []
         self.graph_amount = constants.DEFAULT_GRAPH_AMOUNT
-
         # Used to decide if graphs need to be rearranged
         self.active_graph_amount = None
 
@@ -168,24 +128,39 @@ class GraphPage(ctk.CTkFrame):
         self.label.place(relx=0.5, rely=0.45, anchor=ctk.CENTER)
         # self.label.destroy()
 
-        self.graph1 = Graph(self.main_frame, element_color=constants.BLUE)
-        self.graph2 = Graph(self.main_frame, element_color=constants.GREEN)
-        self.graph3 = Graph(self.main_frame, element_color=constants.RED)
-        self.graph4 = Graph(self.main_frame, element_color=constants.YELLOW)
-
-        self.all_graphs.append(self.graph1)
-        self.all_graphs.append(self.graph2)
-        self.all_graphs.append(self.graph3)
-        self.all_graphs.append(self.graph4)
+        for color in constants.GRAPH_COLORS:
+            self.all_graphs.append(Graph(master=self.main_frame, element_color=color))
 
         # Sidebar
-        self.sidebar = SideBarGraph(self)
+        self.sidebar = GraphSidebar(self)
         self.sidebar.pack(fill=ctk.Y, side=ctk.LEFT)
         self.main_frame.pack(
             fill=ctk.BOTH, expand=True, side=ctk.LEFT, padx=10, pady=10
         )
 
+    def set_ylims(
+        self, lower_ylim: float | None, upper_ylim: float | None, graph_amount: int
+    ):
+        """Set the y-axis limits for a specified number of graphs.
+
+        :param float | None lower_ylim: The lower limit for the y-axis.
+        :param float | None upper_ylim: The upper limit for the y-axis.
+        :param int graph_amount: The number of graphs to update.
+        """
+        for graph_num in range(graph_amount):
+            self.all_graphs[graph_num].ax.set_ylim(lower_ylim, upper_ylim)
+
+    def redraw_graphs(self, graph_amount: int):
+        """Redraw the specified number of graphs on their canvases.
+
+        :param int graph_amount: The number of graphs to redraw.
+        """
+        for graph_num in range(graph_amount):
+            self.all_graphs[graph_num].canvas.draw()
+            self.all_graphs[graph_num].is_drawn = True
+
     def draw_all_graphs(self):
+        """ """
         if self.graph_amount != self.active_graph_amount:
             self._arrange_graphs()
 
@@ -193,7 +168,8 @@ class GraphPage(ctk.CTkFrame):
             self.all_graphs[graph_num].draw_graph(self.graph_amount)
 
         if app_settings.ymode == "Auto Limit":
-            self.set_all_ylims(*self._get_ylim())
+            self.set_ylims(*self._get_ylim(), self.graph_amount)
+            self.redraw_graphs(self.graph_amount)
 
         self.active_graph_amount = self.graph_amount
 
@@ -205,20 +181,10 @@ class GraphPage(ctk.CTkFrame):
             self.all_graphs[graph_num].draw_graph(self.graph_amount)
 
         if app_settings.ymode == "Auto Limit":
-            self.set_all_ylims(*self._get_ylim())
+            self.set_ylims(*self._get_ylim(), self.graph_amount)
+            self.redraw_graphs(self.graph_amount)
 
         self.active_graph_amount = self.graph_amount
-
-    def _get_ylim(self) -> tuple[float, float]:
-        "Returns ymode appropriate ylim"
-        if app_settings.ymode == "Auto Limit":
-            ylim = self._get_auto_ylim()
-        elif app_settings.ymode == "Select Limit":
-            ylim = app_settings.ylim
-        elif app_settings.ymode == "No Limit":
-            ylim = app_settings.default_ylim
-
-        return ylim
 
     def _get_auto_ylim(self) -> tuple[float, float]:
         ylim_upper = None
@@ -239,58 +205,61 @@ class GraphPage(ctk.CTkFrame):
 
         return (app_settings.ylim[0], ylim_upper)
 
-    def set_all_ylims(
-        self, lower_ylim: float | None, upper_ylim: float | None, draw=True
-    ):
-        "Sets ylims of all graphs on screen and redraws them."
+    def _get_ylim(self) -> tuple[float, float]:
+        "Returns ymode appropriate ylim"
+        if app_settings.ymode == "Auto Limit":
+            ylim = self._get_auto_ylim()
+        elif app_settings.ymode == "Select Limit":
+            ylim = app_settings.ylim
+        elif app_settings.ymode == "No Limit":
+            ylim = app_settings.default_ylim
 
-
-        for graph_num in range(self.graph_amount):
-            self.all_graphs[graph_num].ax.set_ylim(lower_ylim, upper_ylim)
-
-            if draw:
-                self.all_graphs[graph_num].canvas.draw()
-                self.all_graphs[graph_num].is_drawn = True
+        return ylim
 
     def _arrange_graphs(self):
         self.label.destroy()
 
         if self.graph_amount == 1:
-            self.graph1.grid_forget()
-            self.graph2.grid_forget()
-            self.graph3.grid_forget()
-            self.graph4.grid_forget()
+            for graph in self.all_graphs:
+                graph.grid_forget()
 
-            self.graph1.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=10)
-            self.graph2.pack_forget()
-            self.graph3.pack_forget()
-            self.graph4.pack_forget()
+            self.all_graphs[0].pack(
+                side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=10
+            )
+            for graph in self.all_graphs[1:]:
+                graph.pack_forget()
+
         elif self.graph_amount == 2:
-            self.graph1.grid_forget()
-            self.graph2.grid_forget()
-            self.graph3.grid_forget()
-            self.graph4.grid_forget()
+            for graph in self.all_graphs:
+                graph.grid_forget()
 
-            self.graph1.pack(
+            self.all_graphs[0].pack(
                 side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=(10, 0)
             )
-            self.graph2.pack(
+            self.all_graphs[1].pack(
                 side=ctk.TOP, fill=ctk.BOTH, expand=True, padx=10, pady=(0, 10)
             )
-            self.graph3.pack_forget()
-            self.graph4.pack_forget()
+            for graph in self.all_graphs[2:]:
+                graph.pack_forget()
+
         elif self.graph_amount == 4:
-            self.graph1.pack_forget()
-            self.graph2.pack_forget()
-            self.graph3.pack_forget()
-            self.graph4.pack_forget()
+            for graph in self.all_graphs:
+                graph.pack_forget()
 
             self.main_frame.columnconfigure((0, 1), weight=1)
             self.main_frame.rowconfigure((0, 1), weight=1)
-            self.graph1.grid(sticky="nsew", row=0, column=0, padx=(10, 0), pady=(10, 0))
-            self.graph2.grid(sticky="nsew", row=0, column=1, padx=(0, 10), pady=(10, 0))
-            self.graph3.grid(sticky="nsew", row=1, column=0, padx=(10, 0), pady=(0, 10))
-            self.graph4.grid(sticky="nsew", row=1, column=1, padx=(0, 10), pady=(0, 10))
+            self.all_graphs[0].grid(
+                sticky="nsew", row=0, column=0, padx=(10, 0), pady=(10, 0)
+            )
+            self.all_graphs[1].grid(
+                sticky="nsew", row=0, column=1, padx=(0, 10), pady=(10, 0)
+            )
+            self.all_graphs[2].grid(
+                sticky="nsew", row=1, column=0, padx=(10, 0), pady=(0, 10)
+            )
+            self.all_graphs[3].grid(
+                sticky="nsew", row=1, column=1, padx=(0, 10), pady=(0, 10)
+            )
 
     def get_drawn_graphs(self) -> list[int]:
         """Return list of numbers of graphs that have been drawn."""
@@ -306,7 +275,19 @@ class GraphPage(ctk.CTkFrame):
         return self.all_graphs[graph_num].fig
 
 
-class SideBarGraph(ctk.CTkFrame):
+class DatabasePage(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, corner_radius=0)
+        self.main_frame = DatabaseMainFrame(self)
+        self.main_frame.pack(
+            fill=ctk.BOTH, expand=True, side=ctk.RIGHT, padx=10, pady=10
+        )
+
+        self.sidebar = DatabaseSidebar(self, self.main_frame)
+        self.sidebar.pack(fill=ctk.Y, side=ctk.LEFT)
+
+
+class GraphSidebar(ctk.CTkFrame):
     def __init__(
         self,
         parent: GraphPage,
@@ -386,6 +367,13 @@ class SideBarGraph(ctk.CTkFrame):
         self.parent.graph_amount = new_amount
 
     def update_all(self):
+        """
+        Updates calendar and locations of every graph tab. Retrieves the necessary data
+        from the database for the update.
+
+        Call whenever updating calendar/locations is necessary. (e.g. database is changed to
+        a different database or the database gets new locations)
+        """
         locations, location_name, unique_dates = self._get_locations_dates()
         for graph_tab in self.graph_tabs:
             graph_tab.update_cal(unique_dates)
@@ -434,9 +422,10 @@ class SideBarGraph(ctk.CTkFrame):
 
 class Graph(ctk.CTkFrame):
     def __init__(
-        self, master=None, element_color="red", padx=0, pady=0, *args, **kwargs
+        self, *args, master=None, element_color="red", padx=0, pady=0, **kwargs
     ):
         super().__init__(master, *args, **kwargs)
+        self.pack_propagate(False)
         self.time_mode: str = constants.DEFAULT_TIME_MODE
         self.locations: dict = constants.NO_LOCATIONS
         self.location_name: str = constants.DEFAULT_LOCATION
@@ -450,16 +439,15 @@ class Graph(ctk.CTkFrame):
 
         self.is_drawn = False
         self.title: str = "Default title"
-        self.x_values: list = []
-        self.y_values: list = []
         self.x_label: str = "x label"
         self.y_label: str = "y label"
+        self.x_values: list = []
+        self.y_values: list = []
         self.element_color: str = element_color
         self.facecolor: str = constants.LIGHT_GREY
         self.edge_color: str = "grey"
         self.axis_colors: str = "white"
 
-        self.pack_propagate(False)
         self.fig = Figure(
             figsize=(20, 20),
             facecolor=self.facecolor,
@@ -475,13 +463,13 @@ class Graph(ctk.CTkFrame):
         # to match surrounding color. (These lines seem to only show up with certain fig sizes)
         self.canvas.get_tk_widget().configure(background=constants.LIGHT_GREY)
 
-    def draw_graph(self, graph_amount: int = 1):
+    def draw_graph(self, graph_amount: int = 1, draw_on_canvas = True):
         """If graph amount is 4, only every other value is used for bar graph"""
-        self._get_graph_data()
-        self._set_graph_settings(graph_amount)
+        self._update_graph_values()
+        self._set_axes(graph_amount)
 
+        # Plot graph
         if self.graph_type.lower() == "bar graph":
-
             width = np.diff(self.x_values).min() * 0.80
 
             self.ax.bar(
@@ -492,7 +480,6 @@ class Graph(ctk.CTkFrame):
                 width=width,
             )
             self.ax.xaxis_date()
-
         elif self.graph_type.lower() == "line graph":
             self.ax.plot(
                 self.x_values,
@@ -501,18 +488,27 @@ class Graph(ctk.CTkFrame):
                 # marker=".",
             )
 
+        # Set ylimits
         if app_settings.ymode == "Select Limit":
             self.ax.set_ylim(*app_settings.ylim)
         elif app_settings.ymode == "Auto Limit":
-            # KORJAA! Change later. Probably no need to draw the graphs yet, since they will
-            # be redrawn in set_all_ylims(). Cannot draw yet because need the
-            # ylims of all of the needed graphs otherwise graphs will be drawn twice.
-            pass
+            # KORJAA!
+            # No need to draw the graphs yet. The graphs will be drawn with redraw_graphs().
+            #
+            # Cannot draw yet because need the ylims of all of the needed graphs otherwise
+            # graphs will be drawn twice.
+            return
 
+        # Draw graph on tkinter canvas
         self.canvas.draw()
         self.is_drawn = True
 
-    def _get_graph_data(self) -> bool:
+    def _update_graph_values(self):
+        """Update the graph values based on the current time mode and location.
+
+        Retrieves data from the database and sets the title, x-label, y-label,
+        x-values, and y-values for the graph.
+        """
         with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             if self.time_mode == "Calendar":
                 search_start, search_end = self._get_search_range()
@@ -531,11 +527,9 @@ class Graph(ctk.CTkFrame):
                     self.locations.get(self.location_name),
                     constants.WEEKDAYS.get(self.weekday),
                 )
-
                 # Korjaa! Voisi varmaan suoraan hakea tunnit eikä hakea epocheja,
                 # jotka muutetaan tunneiksi convert_for_day_graphilla
                 timestamps = utils.day_epochs()
-
             elif self.time_mode == "Time Range":
                 time_r_interval = 60 * 60
                 search_start, search_end = self._get_search_range()
@@ -544,14 +538,13 @@ class Graph(ctk.CTkFrame):
                     search_start,
                     search_end,
                     constants.GRAPH_MODES.get(self.graph_mode),
-                    60 * 60,
+                    time_r_interval,
                 )
                 timestamps = database.helpers.calculate_timestamps(
-                    search_start, search_end, 60 * 60
+                    search_start, search_end, time_r_interval
                 )
 
-        self._set_title_labels(timestamps)
-
+        self._set_title_and_labels(timestamps)
         self.x_values = utils.epochs_to_format(timestamps, "datetime")
         self.y_values = utils.nones_to_zeros(visitors)
 
@@ -559,14 +552,11 @@ class Graph(ctk.CTkFrame):
         search_start: int
         search_end: int
 
-        print("Mode:", self.time_mode)
         if self.time_mode == "Calendar":
             search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
             search_end = utils.next_time(search_start, days=1)  # +1 day
         elif self.time_mode == "Time Range":
-            print("Time Range:", self.time_range)
-
-            search_end_dt = utils.top_of_the_hour(datetime.now())
+            search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
             search_end = utils.datetime_to_epoch(search_end_dt)
 
             time_dif_td = utils.get_time_delta(self.time_range, "negative")
@@ -587,19 +577,7 @@ class Graph(ctk.CTkFrame):
 
         return search_start, search_end
 
-    def _get_all_search_start(self) -> int | None:
-        with database.SQLiteDBManager(app_settings.db_path) as db_handle:
-            search_start = db_handle.get_first_time(
-                self.locations.get(self.location_name)
-            )
-
-        search_start_dt = utils.top_of_the_hour(
-            utils.get_localized_datetime(search_start)
-        )
-
-        return utils.datetime_to_epoch(search_start_dt)
-
-    def get_first(self) -> datetime | None:
+    def get_first(self) -> datetime.datetime | None:
         with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
@@ -609,8 +587,19 @@ class Graph(ctk.CTkFrame):
             search_start = utils.get_localized_datetime(search_start)
 
         return search_start
+    
+    def _get_all_search_start(self) -> int | None:
+        search_start_dt = self.get_first()
 
-    def _set_graph_settings(self, graph_amount: int):
+        if not search_start_dt:
+            return search_start_dt
+
+        search_start_dt = utils.top_of_the_hour(search_start_dt)
+
+        return utils.datetime_to_epoch(search_start_dt)
+
+
+    def _set_axes(self, graph_amount: int):
         self.ax.clear()
         self.ax.set_facecolor(self.axis_colors)
         self.ax.set_title(self.title, color=self.axis_colors)
@@ -705,7 +694,15 @@ class Graph(ctk.CTkFrame):
             lower_limit, upper_limit = self.get_limits(self.x_values)
             self.ax.set_xlim(lower_limit, upper_limit)
 
-    def _set_title_labels(self, timestamps: list[int]):
+    def _set_title_and_labels(self, timestamps: list[int]):
+        """Set the title and axis labels for the graph based on the current
+        time mode and timestamps.
+
+        This method updates the graph's title, x-axis label, and y-axis label
+        according to the current time mode.
+
+        :param list[int] timestamps: A list of epoch timestamps.
+        """
         if self.time_mode == "Calendar":
             # Korjaa! Lisää check, että oikean tyyppistä dataa.
             # for time_stamp in data[0]:
@@ -723,19 +720,21 @@ class Graph(ctk.CTkFrame):
             self.title = f"{self.location_name}, {self.weekday}"
             self.x_label = "Hour"
             self.y_label = self.graph_mode
-
         elif self.time_mode == "Time Range":
             self.title = f"{self.location_name}"
             self.x_label = ""
             self.y_label = self.graph_mode
 
-    def get_limits(self, datetimes: list[datetime]) -> tuple[datetime, datetime]:
+    def get_limits(
+        self, datetimes: list[datetime.datetime]
+    ) -> tuple[datetime.datetime, datetime.datetime]:
         """
         Calculate and return the lower and upper limits based on a list of datetime objects.
 
         The function computes the difference between the first two datetime objects in the list.
-        It then uses this difference to calculate a lower limit by subtracting 0.75% of the difference
-        from the first datetime, and an upper limit by adding 0.75% of the difference to the last datetime.
+        It then uses this difference to calculate a lower limit by subtracting 0.75% of
+        the difference from the first datetime, and an upper limit by adding 0.75% of
+        the difference to the last datetime.
 
         Parameters:
         ---
@@ -770,9 +769,13 @@ class Graph(ctk.CTkFrame):
 
     def reduce_values(self, values: list[Any | str]) -> list[Any | str]:
         """Change every other value in a list to empty string ''."""
-        for i in range(len(values)):
+        for i, _ in enumerate(values):
             if (i % 2) == 1:
                 values[i] = ""
+
+        # for i in range(len(values)):
+        #     if (i % 2) == 1:
+        #         values[i] = ""
 
         return values
 
@@ -886,7 +889,7 @@ class GraphTab:
             background=ctk.ThemeManager.theme["CTkFrame"]["fg_color"][1],
             selectbackground=ctk.ThemeManager.theme["CTkButton"]["fg_color"][1],
             mindate=self.graph.get_first(),
-            maxdate=date.today(),
+            maxdate=datetime.date.today(),
         )
         self.cal.highlight_dates()
         self.cal.bind("<<DateEntrySelected>>", self.update_date)  # Update calendar date
@@ -987,7 +990,7 @@ class GraphTab:
         given dates list."""
         self.cal.dates = dates
         mindate = self.graph.get_first()
-        maxdate = date.today()
+        maxdate = datetime.date.today()
         if not mindate:
             mindate = maxdate
         self.cal.configure(mindate=mindate, maxdate=maxdate)
@@ -1079,53 +1082,10 @@ class GraphTab:
             self.update_cal(unique_dates)
 
 
-class DropdownAndLabel(ctk.CTkFrame):
-    def __init__(
-        self,
-        parent,
-        label: str,
-        values: list,
-        command: Callable[[str], Any],
-        default_value: str,
-        menu_width: int,
-        fg_color: str = "transparent",
-    ):
-        super().__init__(parent, corner_radius=0, fg_color=fg_color)
-
-        # Graph label
-        self.label = ctk.CTkLabel(self, text=label, anchor="w")
-        self.label.pack(side=ctk.TOP, padx=0, pady=(0, 2), fill=ctk.X)
-        # Graph dropdown menu
-        self.option_menu = ctk.CTkOptionMenu(
-            self,
-            values=values,
-            command=command,
-            variable=ctk.StringVar(value=default_value),
-            width=menu_width,
-        )
-        self.option_menu.pack(side=ctk.TOP, padx=0, pady=0)
-
-    def set_menu_values(self, values: list[str], default_value: str):
-        self.option_menu.configure(
-            values=values, variable=ctk.StringVar(value=default_value)
-        )
-
-
-class DatabasePage(ctk.CTkFrame):
-    def __init__(self, parent):
-        super().__init__(parent, corner_radius=0)
-
-        self.pack(side=ctk.TOP, fill=ctk.BOTH, expand="true")
-
-        self.main_frame = MainFrameDatabase(self)
-        self.sidebar = SideBarDatabase(self, self.main_frame)
-
-
-class MainFrameDatabase(ctk.CTkFrame):
-    def __init__(
-        self, parent: DatabasePage, width=0, side=ctk.RIGHT, expand=False, fill=None
-    ):
+class DatabaseMainFrame(ctk.CTkFrame):
+    def __init__(self, parent: DatabasePage):
         super().__init__(parent)
+        self.pack_propagate(False)
         self.col_interval = constants.DEFAULT_COL_INTERVAL
         self.col_active = False
 
@@ -1161,9 +1121,6 @@ class MainFrameDatabase(ctk.CTkFrame):
         self.textbox.bind("<Key>", lambda e: "break")
         self.textbox.bind("<Control-c>", lambda e: None)  # Enable Ctrl + c
         self.textbox.bind("<Control-a>", lambda e: None)  # Enable Ctrl + a
-
-        self.pack_propagate(False)
-        self.pack(fill=ctk.BOTH, expand=True, side=side, padx=10, pady=10)
 
         # Active Settings Label
         self.info_label = ctk.CTkLabel(
@@ -1220,14 +1177,15 @@ class MainFrameDatabase(ctk.CTkFrame):
         )
 
 
-class SideBarDatabase(ctk.CTkFrame):
+class DatabaseSidebar(ctk.CTkFrame):
     def __init__(
         self,
         parent: DatabasePage,
-        main_frame: MainFrameDatabase,
+        main_frame: DatabaseMainFrame,
         width=constants.SIDEBAR_WIDTH,
     ):
         super().__init__(parent, width=width, corner_radius=0)
+        self.pack_propagate(False)
         self.thread_id = 1  # Used for stopping data collection
         self.col_interval = constants.DEFAULT_COL_INTERVAL
 
@@ -1239,9 +1197,6 @@ class SideBarDatabase(ctk.CTkFrame):
             self.unique_dates = db_handle.get_unique_dates(
                 constants.RETRIEVAL_LOCATIONS.get(constants.DEFAULT_RETRIEVAL_LOCATION)
             )
-
-        self.pack(fill=ctk.Y, side=ctk.LEFT)
-        self.pack_propagate(False)
 
         # Sidebar label
         self.logo_label = ctk.CTkLabel(
@@ -1356,11 +1311,19 @@ class SideBarDatabase(ctk.CTkFrame):
                     func_time = time.perf_counter() - start_time
                     sleep_time = max(0, (interval - func_time))
                     time.sleep(sleep_time)  # Sleep for remaining time
-        except Exception as e:
+        except (requests.exceptions.ConnectionError, Exception) as err:
             self.write_to_textbox(
-                f"Data collection aborted. Restarting app might be necessary. Database error: {e}\n\n"
+                "Data collection aborted. Restarting app might be necessary."
+                + f" Database error:\n{err}\n\n"
             )
             self.stop_collecting_data()  # Toggle data collection button off
+            print("--------------------------------------\nerror\n")
+            print(err)
+            print("--------------------------------------\nstack\n")
+            traceback.print_stack()
+            print("--------------------------------------\nexc\n")
+            traceback.print_exc()
+            print("--------------------------------------")
 
     def _format_data(self, location_data: Location):
         formatted_str = f"""
@@ -1370,90 +1333,6 @@ class SideBarDatabase(ctk.CTkFrame):
         """
 
         return formatted_str
-
-
-class CustomDateEntry(DateEntry):
-    """
-    Note: showothermonthdays=False on default to avoid bug caused by highlighting
-    dates outside current selected month. Creating a calevent for a date in the calendar
-    changes the 'style' of date from ('normal'/'normal_om' or 'we'/'we_om') to 'tag_%s' (tag_name).
-    - DateEntry -> Calendar -> Calendar._on_click()
-    - tkcalendar.calendar_.py -> Calendar._on_click
-
-
-        self._calendar.calevent_create(dt, "Has Data", tag) creates a calevent that changes style of the date
-
-        Following check fails because style is always 'tag_%s' (tag_name)
-
-        if style in ['normal_om.%s.TLabel' % self._style_prefixe, 'we_om.%s.TLabel' % self._style_prefixe]:
-            if label in self._calendar[0]:
-                self._prev_month()
-            else:
-                self._next_month()
-    """
-
-    def __init__(
-        self, master=None, dates: list[str] = None, showothermonthdays=False, **kw
-    ):
-        if dates is None:
-            dates = []
-        super().__init__(master, showothermonthdays=showothermonthdays, **kw)
-        self.dates = dates
-        self.configure_size()
-        self.bind("<Configure>", self.update_on_resize)  # Bind to the Configure event
-
-    def drop_down(self):
-        """Display or withdraw the drop-down calendar depending on its current state."""
-        if self._calendar.winfo_ismapped():
-            self._top_cal.withdraw()
-        else:
-            self._validate_date()
-            date = self.parse_date(self.get())
-            x = self.winfo_rootx()
-            y = self.winfo_rooty() + self.winfo_height()
-            if self.winfo_toplevel().attributes("-topmost"):
-                self._top_cal.attributes("-topmost", True)
-            else:
-                self._top_cal.attributes("-topmost", False)
-            # - patch begin: Stop calendar from opening outside screen.
-            current_screen_height = utils.get_monitor_from_coord(x, y).height
-            if y + self._top_cal.winfo_height() > current_screen_height - 70:
-                y = self.winfo_rooty() - self._top_cal.winfo_height()
-            # - patch end
-            self._top_cal.geometry("+%i+%i" % (x, y))
-            self._top_cal.deiconify()
-            self._calendar.focus_set()
-            self._calendar.selection_set(date)
-
-    def configure_size(self):
-        # Calculate the font size based on the width of the widget
-        width = self.winfo_width()
-        font_size = int(width / constants.DATE_ENTRY_FONT_SMALLNESS)
-        cal_font_size = int(width / constants.CALENDAR_FONT_SMALLNESS)
-
-        # Create a font object with the calculated size
-        self.custom_font = ctk.CTkFont(
-            family="Helvetica", size=font_size, weight="bold"
-        )
-        self.custom_cal_font = ctk.CTkFont(
-            family="Helvetica", size=cal_font_size, weight="bold"
-        )
-
-        # Update the font configuration for the widget
-        self.configure(font=self.custom_font)
-        self._calendar.configure(font=self.custom_cal_font)
-
-    def highlight_dates(self):
-        self._calendar.calevent_remove("all")
-        tag_name = "Data"
-        for date in self.dates:
-            dt = datetime.strptime(date, "%d-%m-%Y")
-            self._calendar.calevent_create(dt, "Has Data", tag_name)
-
-        self._calendar.tag_config(tag_name, background="#19a84c", foreground="white")
-
-    def update_on_resize(self, event):
-        self.configure_size()
 
 
 class MyMenuBar(CTkMenuBar):
@@ -1478,20 +1357,20 @@ class MyMenuBar(CTkMenuBar):
         # Import data / Create Backup buttons
         file_dropdown.add_option(option="Import Data", command=self.import_data)
         file_dropdown.add_option(option="Create Backup", command=self.create_backup)
-        file_dropdown.add_separator()
-        # Change database buttons
+        # file_dropdown.add_separator()
+        # Change database button
         file_dropdown.add_option(option="Change Database", command=self.select_db)
-        file_dropdown.add_option(
-            option="Use Default Database", command=self.use_default_db
-        )
+        # file_dropdown.add_option(
+        #     option="Use Default Database", command=self.use_default_db
+        # )
 
         # Buttons in View
         view_dropdown = CustomDropdownMenu(master=parent, widget=view_button)
         view_dropdown.add_option(
-            option="Graphs", command=lambda: parent.show_graph_page()
+            option="Graphs", command=lambda: parent.lift_page("graph")
         )
         view_dropdown.add_option(
-            option="Database", command=lambda: parent.show_database_page()
+            option="Database", command=lambda: parent.lift_page("database")
         )
 
         # Buttons in Help
@@ -1505,8 +1384,11 @@ class MyMenuBar(CTkMenuBar):
         SettingsPopup(self.parent, "Settings")
 
     def create_backup(self):
-        backup_path = self.parent.open_save_file_dialog(
-            title="Save Backup", filetypes=[("SQLite Database (*.db)", "*.db")]
+        backup_path = filedialog.asksaveasfilename(
+            confirmoverwrite=True,
+            defaultextension=constants.DB_DEFAULTEXTENSION,
+            title="Save Backup",
+            filetypes=constants.DB_FILETYPES,
         )
 
         if backup_path:
@@ -1517,7 +1399,8 @@ class MyMenuBar(CTkMenuBar):
             else:
                 messagebox.showerror(
                     title="Error",
-                    message="Unable to replace the old database with the backup. Choose a different name or a location for the backup.",
+                    message="Unable to replace the old database with the backup. "
+                    + "Choose a different name or a location for the backup.",
                 )
                 # self.create_backup()
 
@@ -1525,40 +1408,33 @@ class MyMenuBar(CTkMenuBar):
     #     print(f"Copied {total-remaining} of {total} pages... status={status}")
 
     def import_data(self):
-        import_path = self.parent.open_choose_file_dialog(
-            title="Select database", filetypes=[("SQLite Database (*.db)", "*.db")]
+        import_path = filedialog.askopenfilename(
+            defaultextension=constants.DB_DEFAULTEXTENSION,
+            filetypes=constants.DB_FILETYPES,
+            initialdir=constants.DB_INITIALDIR,
+            title="Select database",
         )
 
         if import_path:
             if os.path.realpath(import_path) != os.path.realpath(app_settings.db_path):
                 with database.SQLiteDBManager(import_path) as db_handle:
                     db_handle.import_data(app_settings.db_path)
-                    self.parent.graph_page.sidebar.update_all()
+                    self.parent.pages.get("graph").sidebar.update_all()
                     messagebox.showinfo("Info", "Data imported")
             else:
                 messagebox.showerror(
                     title="Error",
-                    message="Unable to import data from the same database. Choose a different database to import from.",
+                    message="Unable to import data from the same database. "
+                    + "Choose a different database to import from.",
                 )
 
-    def use_default_db(self):
-        default_filepath = os.path.relpath(app_settings.default_db_path)
-
-        if app_settings.db_path:
-            old_filepath = os.path.relpath(app_settings.db_path)
-
-        if old_filepath == default_filepath:
-            messagebox.showinfo("Info", "The default database is already in use.")
-        else:
-            if messagebox.askokcancel(
-                "Use default database?",
-                f"Do you wish to change currently used database ({old_filepath}) to default database ({default_filepath})?",
-            ):
-                app_settings.db_path = default_filepath
-                self.parent.graph_page.sidebar.update_all()
-
     def select_db(self):
-        new_filepath = self.parent.open_choose_file_dialog("Select database")
+        new_filepath = filedialog.askopenfilename(
+            defaultextension=constants.DB_DEFAULTEXTENSION,
+            filetypes=constants.DB_FILETYPES,
+            initialdir=constants.DB_INITIALDIR,
+            title="Select database",
+        )
 
         if new_filepath:
             new_filepath = os.path.relpath(new_filepath)
@@ -1566,28 +1442,14 @@ class MyMenuBar(CTkMenuBar):
 
             if messagebox.askokcancel(
                 "Change database?",
-                f"Do you wish to change currently used database ({old_filepath}) to selected database ({new_filepath})?",
+                f"Do you wish to change currently used database ({old_filepath}) to "
+                + f"selected database ({new_filepath})?",
             ):
                 app_settings.db_path = new_filepath
-                self.parent.graph_page.sidebar.update_all()
-
-    def default_db(self):
-        default_filepath = os.path.relpath(app_settings.default_db_path)
-
-        if self.filepath:
-            rel_path = os.path.relpath(self.filepath)
-
-        if rel_path == default_filepath:
-            messagebox.showinfo(
-                "Info", "No changes made. The default database is already selected."
-            )
-        else:
-            _, tail = ntpath.split(default_filepath)
-            self.db_path_frame.winfo_children()[1].configure(text=tail)
-            self.filepath = default_filepath
+                self.parent.pages.get("graph").sidebar.update_all()
 
     def save_single_graph(self):
-        drawn_graphs = self.parent.graph_page.get_drawn_graphs()
+        drawn_graphs = self.parent.pages.get("graph").get_drawn_graphs()
         if drawn_graphs:
             SaveSinglePopup(self.parent, "Select graph", drawn_graphs)
         else:
@@ -1597,15 +1459,21 @@ class MyMenuBar(CTkMenuBar):
             )
 
     def save_fig(self):
-        drawn_graphs = self.parent.graph_page.get_drawn_graphs()
+        drawn_graphs = self.parent.pages.get("graph").get_drawn_graphs()
         if drawn_graphs:
 
-            file_path = self.parent.open_save_file_dialog(title="Save Figure")
+            file_path = filedialog.asksaveasfilename(
+                confirmoverwrite=True,
+                defaultextension=constants.IMG_DEFAULTEXTENSION,
+                title="Save Figure",
+                filetypes=constants.IMG_FILETYPES,
+            )
+
             if file_path:
                 images = []
 
-                for i in range(self.parent.graph_page.active_graph_amount):
-                    canvas = self.parent.graph_page.all_graphs[i].fig.canvas
+                for i in range(self.parent.pages.get("graph").active_graph_amount):
+                    canvas = self.parent.pages.get("graph").all_graphs[i].fig.canvas
                     images.append(
                         Image.frombytes(
                             "RGB", canvas.get_width_height(), canvas.tostring_rgb()
@@ -1701,8 +1569,9 @@ class SettingsFrame(ctk.CTkFrame):
         ---
         Construct a frame widget with the parent MASTER.
 
-        Valid resource names: background, bd, bg, borderwidth, class, colormap, container, cursor, height,
-        highlightbackground, highlightcolor, highlightthickness, relief, takefocus, visual, width.
+        Valid resource names: background, bd, bg, borderwidth, class, colormap, container, cursor,
+        height, highlightbackground, highlightcolor, highlightthickness, relief, takefocus, visual,
+        width.
         """
         super().__init__(master=master, corner_radius=corner_radius, **kwargs)
 
@@ -1735,17 +1604,17 @@ class SettingsFrame(ctk.CTkFrame):
         setting_frame = ctk.CTkFrame(self, fg_color="transparent")
         setting_frame.pack(side=ctk.TOP, anchor="w", fill=ctk.X)
         # Label
-        self.label = ctk.CTkLabel(
+        label = ctk.CTkLabel(
             setting_frame, text=label_text, anchor="w", height=0, width=label_width
         )
-        self.label.cget("font").configure(size=font_size)
-        self.label.pack(side=ctk.LEFT, anchor="w", padx=(padx_inner, 0), pady=(0, pady))
+        label.cget("font").configure(size=font_size)
+        label.pack(side=ctk.LEFT, anchor="w", padx=(padx_inner, 0), pady=(0, pady))
         # Button
-        self.button = ctk.CTkButton(
+        button = ctk.CTkButton(
             setting_frame,
             text=button_text,
             command=command,
-            font=self.label.cget("font"),
+            font=label.cget("font"),
             fg_color=constants.DARK_GREY_SETTINGS_BUTTON,
             border_color="black",
             border_width=1,
@@ -1755,8 +1624,8 @@ class SettingsFrame(ctk.CTkFrame):
             border_spacing=4,
             **kwargs,
         )
-        # self.button._text_label.configure(wraplength=500)
-        self.button.pack(
+        # button._text_label.configure(wraplength=500)
+        button.pack(
             side=ctk.LEFT,
             anchor="w",
             padx=(0, padx),
@@ -1767,7 +1636,7 @@ class SettingsFrame(ctk.CTkFrame):
 
         return setting_frame
 
-    def add_setting_dropdown(
+    def add_settings_dropdown(
         self,
         label_text: str,
         values: list,
@@ -1781,7 +1650,7 @@ class SettingsFrame(ctk.CTkFrame):
         fill="x",
         **kwargs,
     ):
-        setting_dropdown = SettingDropdown(
+        settings_dropdown = SettingsDropdown(
             self,
             label_text,
             values,
@@ -1795,12 +1664,12 @@ class SettingsFrame(ctk.CTkFrame):
             fill,
             **kwargs,
         )
-        setting_dropdown.pack(side=ctk.TOP, anchor="w", fill=ctk.X)
+        settings_dropdown.pack(side=ctk.TOP, anchor="w", fill=ctk.X)
 
-        return setting_dropdown
+        return settings_dropdown
 
 
-class SettingDropdown(ctk.CTkFrame):
+class SettingsDropdown(ctk.CTkFrame):
     def __init__(
         self,
         parent,
@@ -1866,148 +1735,6 @@ class SettingDropdown(ctk.CTkFrame):
         )
 
 
-class InfoButton(ctk.CTkButton):
-    def __init__(
-        self,
-        parent,
-        command=None,
-        popup_title="Info",
-        popup_info_text="Info text",
-        *args,
-        **kwargs,
-    ):
-        """
-        If command = None, popup_title and popup_info_text are used with messagebox.showinfo().
-        """
-        if not command:
-            command = lambda: self.info_popup(popup_title, popup_info_text)
-
-        # Info image
-        info_img = Image.open("src\images\information-button.png")
-        info_img_ctk = ctk.CTkImage(
-            light_image=info_img, dark_image=info_img, size=(15, 15)
-        )
-
-        super().__init__(
-            parent,
-            image=info_img_ctk,
-            width=1,
-            height=1,
-            corner_radius=50,
-            hover_color="#afafaf",
-            text="",
-            fg_color="white",
-            bg_color="transparent",
-            command=command,
-            round_height_to_even_numbers=False,
-            round_width_to_even_numbers=False,
-            *args,
-            **kwargs,
-        )
-
-    def info_popup(self, title="Info", info_text="Info text"):
-        messagebox.showinfo(title, info_text, master=self)
-
-
-class MyPopup(ctk.CTkToplevel):
-    def __init__(
-        self,
-        parent: App,
-        title: str,
-        geometry="250x300",
-        minsize=(250, 300),
-        maxsize=(250, 300),
-        *args,
-        **kwargs,
-    ):
-        super().__init__(parent, *args, **kwargs)
-
-        self.geometry(geometry)
-        if minsize:
-            self.minsize(minsize[0], minsize[1])
-        if maxsize:
-            self.maxsize(maxsize[0], maxsize[1])
-        self.title(title)
-        self.grab_set()
-
-        self.bottom_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
-
-    def add_bottom_button(
-        self,
-        text: str,
-        command,
-        master: ctk.CTkFrame | None = None,
-        width=80,
-        height=5,
-        corner_radius=0,
-        border_width=0.5,
-        *args,
-        **kwargs,
-    ) -> ctk.CTkButton:
-        """
-        If master is None self.bottom_frame is used.
-        CTkButton *args/**kwargs are usable
-        """
-        if not master:
-            master = self.bottom_frame
-
-        padx = (5, 5)
-        if not master.winfo_children():
-            # More right padding for first button
-            padx = (5, 15)
-
-        button = ctk.CTkButton(
-            master,
-            width=width,
-            height=height,
-            corner_radius=corner_radius,
-            border_width=border_width,
-            text=text,
-            command=command,
-            *args,
-            **kwargs,
-        )
-        button.pack(side=ctk.RIGHT, padx=padx)
-
-        return button
-
-    def _cancel_event(self):
-        self.destroy()
-
-    def add_cancel_button(
-        self,
-        master: ctk.CTkFrame | None = None,
-        width=80,
-        height=5,
-        corner_radius=0,
-        border_width=0.5,
-        *args,
-        **kwargs,
-    ) -> ctk.CTkButton:
-        return self.add_bottom_button(
-            "Cancel",
-            self._cancel_event,
-            master,
-            width=width,
-            height=height,
-            corner_radius=corner_radius,
-            border_width=border_width,
-            *args,
-            **kwargs,
-        )
-
-    def pack_bottom_frame(self) -> ctk.CTkFrame:
-        """
-        Returns bottom_frame
-
-        pack: side=bottom, fill=both and pack_propagate=False
-        """
-        self.bottom_frame.pack(side=ctk.BOTTOM, fill=ctk.X)
-        self.bottom_frame.pack_propagate(False)
-
-        return self.bottom_frame
-
-
 class SaveSinglePopup(MyPopup):
     def __init__(
         self, parent: App, title: str, drawn_graphs: list[int], *args, **kwargs
@@ -2017,7 +1744,7 @@ class SaveSinglePopup(MyPopup):
         self.chosen_graph = None
 
         # Open square image
-        img_square = Image.open("src\images\square1234.png")
+        img_square = Image.open("src\\images\\square1234.png")
         img_square_ctk = ctk.CTkImage(
             light_image=img_square, dark_image=img_square, size=(150, 150)
         )
@@ -2044,7 +1771,7 @@ class SaveSinglePopup(MyPopup):
         choose_graph_menu.pack(side=ctk.LEFT, padx=10, pady=0, anchor="center")
 
         info_button = InfoButton(
-            drop_info_frame,
+            parent=drop_info_frame,
             popup_title="Info",
             popup_info_text="Only graphs that have been drawn will be available for saving."
             + "\n\nThis includes graphs that may not currently be visible on the screen "
@@ -2053,11 +1780,9 @@ class SaveSinglePopup(MyPopup):
         info_button.pack(side=ctk.LEFT, anchor="se")
 
         # Pack bottom frame
-        bottom_frame = self.pack_bottom_frame()
-
+        self.pack_bottom_frame()
         # Cancel button
-        cancel_button = self.add_cancel_button()
-
+        self.add_cancel_button()
         # OK button
         self.ok_button: ctk.CTkButton = self.add_bottom_button(
             text="OK", command=self._ok_event, state=ctk.DISABLED
@@ -2072,8 +1797,14 @@ class SaveSinglePopup(MyPopup):
         self.destroy()
 
     def _ok_event(self):
-        fig = self.parent.graph_page.get_fig(self.chosen_graph)
-        file_path = self.parent.open_save_file_dialog(title="Save Graph")
+        fig = self.parent.pages.get("graph").get_fig(self.chosen_graph)
+        file_path = filedialog.asksaveasfilename(
+            confirmoverwrite=True,
+            defaultextension=constants.IMG_DEFAULTEXTENSION,
+            title="Save Graph",
+            filetypes=constants.IMG_FILETYPES,
+        )
+
         if file_path:
             fig.savefig(fname=file_path)
             self.destroy()
@@ -2099,12 +1830,11 @@ class SettingsPopup(MyPopup):
             *args,
             **kwargs,
         )
+        self.pack_propagate(True)
         self.parent = parent
         self.filepath = app_settings.db_path
         self.ylim: tuple[float, float] = app_settings.ylim
         self.ymode = app_settings.ymode
-
-        self.pack_propagate(True)
 
         pad = 8
 
@@ -2139,7 +1869,7 @@ class SettingsPopup(MyPopup):
             side=ctk.TOP, anchor="w", fill=ctk.BOTH, padx=pad, pady=(pad, 2 * pad)
         )
         graph_frame.add_title("Graphs")
-        self.settings_dropdown = graph_frame.add_setting_dropdown(
+        self.settings_dropdown = graph_frame.add_settings_dropdown(
             "y-axis upper bound:",
             constants.YMODES,
             default_value=self.get_ylim_text(),
@@ -2178,7 +1908,7 @@ class SettingsPopup(MyPopup):
     def _ok_event(self):
         if self.filepath and self.filepath != os.path.relpath(app_settings.db_path):
             app_settings.db_path = self.filepath
-            self.parent.graph_page.sidebar.update_all()
+            self.parent.pages.get("graph").sidebar.update_all()
 
         if self.ylim and (
             self.ylim != app_settings.ylim or self.ymode != app_settings.ymode
@@ -2202,7 +1932,12 @@ class SettingsPopup(MyPopup):
             self.db_path_frame.winfo_children()[1].configure(text=tail)
 
     def select_db(self):
-        filepath = self.parent.open_choose_file_dialog("Select database")
+        filepath = filedialog.askopenfilename(
+            defaultextension=constants.DB_DEFAULTEXTENSION,
+            filetypes=constants.DB_FILETYPES,
+            initialdir=constants.DB_INITIALDIR,
+            title="Select database",
+        )
 
         if filepath:
             filepath = os.path.relpath(filepath)
