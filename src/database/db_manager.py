@@ -248,7 +248,7 @@ class SQLiteDBManager:
         if not helpers.are_ints(location_id, start, end) or (start < 0 or end < 0):
             return activity_list
 
-        pstmt_get_between: str = """SELECT epoch_timestamp, location_visitors 
+        pstmt_get_between: str = """SELECT epoch_timestamp, location_visitors
             FROM visitor_activity
             WHERE (location_id = ?) AND (? <= epoch_timestamp AND epoch_timestamp < ?)
             ORDER BY epoch_timestamp
@@ -298,16 +298,16 @@ class SQLiteDBManager:
             )
 
             missing_hour = None
-
-            if new_sums.__len__() != 24:
+            
+            if len(new_sums) != 24:
                 missing_hour = helpers.calculate_missing_or_extra_hour(
                     start, end, interval
                 )
                 new_sums = helpers.add_or_remove_extra_values(
                     new_sums, missing_hour, 0, 24
                 )
-
-            if new_counts.__len__() != 24:
+            
+            if len(new_counts) != 24:
                 if not missing_hour:
                     missing_hour = helpers.calculate_missing_or_extra_hour(
                         start, end, interval
@@ -502,7 +502,13 @@ class SQLiteDBManager:
     def get_locations(self) -> List[tuple[int, str]]:
         return self.get_all("locations")
 
-    def get_unique_dates(self, location_id: int) -> List[int]:
+    def get_unique_dates(self, location_id: int) -> List[str]:
+        """Retrive all unique dates matching the location_id from the database.
+
+        :return: list of unique dates following format "%d-%m-%Y".
+        :rtype: List[str]
+        """
+
         unique_epochs = []
 
         if not helpers.are_ints(location_id):
