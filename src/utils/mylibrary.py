@@ -1,4 +1,3 @@
-
 import datetime
 from tkinter import messagebox
 from typing import Callable, Any
@@ -11,30 +10,46 @@ from tkcalendar import DateEntry
 import utils
 
 class CustomDateEntry(DateEntry):
-    """
-    Note: showothermonthdays=False on default to avoid bug caused by highlighting
-    dates outside current selected month. Creating a calevent for a date in the calendar
-    changes the 'style' of date from ('normal'/'normal_om' or 'we'/'we_om') to 'tag_%s' (tag_name).
+    """Custom DateEntry widget
+
+    :param master: widget master, defaults to None
+    :param dates: list of unique dates following format "%d-%m-%Y", defaults to None
+    :type dates: list[str] | None, optional
+    :param showothermonthdays: whether to display the last days of the
+        previous month and the first of the next month, defaults to False
+    :type showothermonthdays: bool, optional
+
+    - Note: showothermonthdays=False on default to avoid bug caused by highlighting
+    dates outside current selected month.
+    
+    Bug origin:
+    Creating a calevent for a date in the calendar changes the 'style' of date from
+    ('normal'/'normal_om' or 'we'/'we_om') to 'tag_%s' (tag_name).
     - DateEntry -> Calendar -> Calendar._on_click()
     - tkcalendar.calendar_.py -> Calendar._on_click
 
 
-        self._calendar.calevent_create(dt, "Has Data", tag) creates a calevent
-        that changes style of the date
+    self._calendar.calevent_create(dt, "Has Data", tag) creates a calevent
+    that changes style of the date
 
-        Following check fails because style is always 'tag_%s' (tag_name)
+    Following check fails because style is always 'tag_%s' (tag_name)
 
-        if style in ['normal_om.%s.TLabel' % self._style_prefixe,
-        'we_om.%s.TLabel' % self._style_prefixe]:
-            if label in self._calendar[0]:
-                self._prev_month()
-            else:
-                self._next_month()
+    if style in ['normal_om.%s.TLabel' % self._style_prefixe,
+    'we_om.%s.TLabel' % self._style_prefixe]:
+        if label in self._calendar[0]:
+            self._prev_month()
+        else:
+            self._next_month()
+
+    This prevents the month from changing when a date outside of the currently
+    shown month in the calendar is selected. Which means that the date will change
+    but the month doesn't change with it.
     """
 
     def __init__(
         self, master=None, dates: list[str] | None = None, showothermonthdays=False, **kw
     ):
+
         if dates is None:
             dates = []
         super().__init__(master, showothermonthdays=showothermonthdays, **kw)
@@ -45,8 +60,9 @@ class CustomDateEntry(DateEntry):
     def drop_down(self):
         """
         Display or withdraw the drop-down calendar depending on its current state.
-        
-        DateEntry drop_down() with a patch to fix calender from opening outside screen.
+
+        Patched version of the DateEntry drop_down(). The patch stops calender
+        from opening outside screen.
         """
         if self._calendar.winfo_ismapped():
             self._top_cal.withdraw()
@@ -106,8 +122,10 @@ class CustomDateEntry(DateEntry):
 
         self._calendar.tag_config(tag_name, background="#19a84c", foreground="white")
 
-    def update_on_resize(self, event):
+    def update_on_resize(self, event=None):
+        """Handle the resize event for the widget."""
         self.configure_size()
+
 
 class MyPopup(ctk.CTkToplevel):
     """
@@ -238,6 +256,7 @@ class DropdownAndLabel(ctk.CTkFrame):
         self.option_menu.pack(side=ctk.TOP, padx=0, pady=0)
 
     def set_menu_values(self, values: list[str], default_value: str):
+        "Set menu values of the CTkOptionMenu"
         self.option_menu.configure(
             values=values, variable=ctk.StringVar(value=default_value)
         )
@@ -255,8 +274,11 @@ class InfoButton(ctk.CTkButton):
         """
         If command = None, popup_title and popup_info_text are used with messagebox.showinfo().
         """
+        self.popup_title = popup_title
+        self.popup_info_text = popup_info_text
+
         if not command:
-            command = lambda: self.info_popup(popup_title, popup_info_text)
+            command = self.info_popup
 
         # Info image
         info_img = Image.open("src\\images\\information-button.png")
@@ -281,5 +303,5 @@ class InfoButton(ctk.CTkButton):
             **kwargs,
         )
 
-    def info_popup(self, title="Info", info_text="Info text"):
-        messagebox.showinfo(title, info_text, master=self)
+    def info_popup(self):
+        messagebox.showinfo(self.popup_title, self.popup_info_text, master=self)
