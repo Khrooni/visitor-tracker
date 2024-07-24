@@ -1,7 +1,4 @@
-# from datetime import datetime, date
 import datetime
-
-# from dateutil.rrule import rrule, YEARLY, MONTHLY, DAILY, HOURLY
 import ntpath
 import os
 import threading
@@ -20,9 +17,6 @@ import requests
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-
-# from matplotlib.lines import Line2D
-# import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 
 import constants
@@ -30,9 +24,9 @@ import database
 import database.helpers
 import retrieve_data
 from retrieve_data import Location
+from settings import Settings
 import utils
 from utils import DropdownAndLabel, InfoButton, MyPopup, CustomDateEntry
-from settings import Settings
 
 
 app_settings = Settings()
@@ -126,7 +120,6 @@ class GraphPage(ctk.CTkFrame):
             corner_radius=10,
         )
         self.label.place(relx=0.5, rely=0.45, anchor=ctk.CENTER)
-        # self.label.destroy()
 
         for color in constants.GRAPH_COLORS:
             self.all_graphs.append(Graph(master=self.main_frame, element_color=color))
@@ -160,7 +153,7 @@ class GraphPage(ctk.CTkFrame):
             self.all_graphs[graph_num].is_drawn = True
 
     def draw_all_graphs(self):
-        """ """
+        """Rearrange graphs and draw all graphs on screen."""
         if self.graph_amount != self.active_graph_amount:
             self._arrange_graphs()
 
@@ -174,6 +167,14 @@ class GraphPage(ctk.CTkFrame):
         self.active_graph_amount = self.graph_amount
 
     def draw_single_graph(self, graph_num: int):
+        """Draw a specific graph based on the provided graph number.
+
+        Note: redraws other graphs if ymode is set to "Auto Limit" and the limit
+        needs be changed according to auto limit logic.
+
+        :param graph_num: The index of the graph to be drawn. Must be less than `graph_amount`.
+        :type graph_num: int
+        """
         if self.graph_amount != self.active_graph_amount:
             self._arrange_graphs()
 
@@ -187,6 +188,11 @@ class GraphPage(ctk.CTkFrame):
         self.active_graph_amount = self.graph_amount
 
     def _get_auto_ylim(self) -> tuple[float, float]:
+        """Calculate auto ylim from all graphs on screen.
+
+        :return: (ylim_lower, ylim_upper)
+        :rtype: tuple[float, float]
+        """
         ylim_upper = None
         margin = 0.05
 
@@ -206,7 +212,10 @@ class GraphPage(ctk.CTkFrame):
         return (app_settings.ylim[0], ylim_upper)
 
     def _get_ylim(self) -> tuple[float, float]:
-        "Returns ymode appropriate ylim"
+        """
+        :return: ymode appropriate y-limit. (ylim_lower, ylim_upper)
+        :rtype: tuple[float, float]
+        """
         if app_settings.ymode == "Auto Limit":
             ylim = self._get_auto_ylim()
         elif app_settings.ymode == "Select Limit":
@@ -217,7 +226,10 @@ class GraphPage(ctk.CTkFrame):
         return ylim
 
     def _arrange_graphs(self):
-        self.label.destroy()
+        """Rearrange graphs depending on `graph_amount`."""
+        if self.label:
+            self.label.destroy()
+            self.label = None
 
         if self.graph_amount == 1:
             for graph in self.all_graphs:
@@ -262,7 +274,7 @@ class GraphPage(ctk.CTkFrame):
             )
 
     def get_drawn_graphs(self) -> list[int]:
-        """Return list of numbers of graphs that have been drawn."""
+        """Return list of indexes of graphs that have been drawn."""
         drawn_graphs: list[int] = []
         for i, graph in enumerate(self.all_graphs):
             if graph.is_drawn:
@@ -271,7 +283,11 @@ class GraphPage(ctk.CTkFrame):
         return drawn_graphs
 
     def get_fig(self, graph_num: int) -> Figure:
-        """graph num = index of graph"""
+        """Retrieve the Figure object for a specified graph.
+
+        :param graph_num: graph's index
+        :type graph_num: int
+        """
         return self.all_graphs[graph_num].fig
 
 
@@ -380,14 +396,12 @@ class GraphSidebar(ctk.CTkFrame):
             graph_tab.update_loc(locations, location_name)
 
     def _get_locations_dates(self) -> tuple[dict[str, int], str, list[str]]:
-        """
-        Get all locations from the database. The first location from the database
+        """Get all locations from the database. The first location from the database
         is used as the selected location (location_name). The selected location is used to get
         unique dates that have visitor data.
 
-        Returns
-        ---
-        tuple[all_locations, location_name, unique_dates]
+        :return: tuple[all_locations, location_name, unique_dates]
+        :rtype: tuple[dict[str, int], str, list[str]]
         """
         locations = constants.NO_LOCATIONS
         default_location = constants.DEFAULT_LOCATION
@@ -415,6 +429,7 @@ class GraphSidebar(ctk.CTkFrame):
             )
 
     def enable_tab_buttons(self, graph_amount: int):
+        """Enable 'Plot Graph'-button in all GraphTabs in graph amount"""
         for i in range(graph_amount - 1):
             # i + 1 (first tab button is never disabled)
             self.graph_tabs[i + 1].plot_graph_button.configure(state=ctk.NORMAL)
@@ -463,8 +478,18 @@ class Graph(ctk.CTkFrame):
         # to match surrounding color. (These lines seem to only show up with certain fig sizes)
         self.canvas.get_tk_widget().configure(background=constants.LIGHT_GREY)
 
-    def draw_graph(self, graph_amount: int = 1, draw_on_canvas = True):
-        """If graph amount is 4, only every other value is used for bar graph"""
+    def draw_graph(self, graph_amount: int = 1, force_draw=False):
+        """Retrieve graph values from the database, set axes values, plot graph
+        and finally if app_settings.ymode isn't "Auto Limit" draw the graph on
+        tkinter canvas.
+
+        :param graph_amount: amount of graphs that will be drawn, defaults to 1.
+            If graph amount is 4, only every other value is used for bar graph
+        :type graph_amount: int, optional
+        :param force_draw: force drawing the graph on tkinter canvas even if
+            app_settings.ymode is "Auto Limit", defaults to False
+        :type force_draw: bool, optional
+        """
         self._update_graph_values()
         self._set_axes(graph_amount)
 
@@ -479,25 +504,27 @@ class Graph(ctk.CTkFrame):
                 align="center",
                 width=width,
             )
-            self.ax.xaxis_date()
+            # self.ax.xaxis_date()
         elif self.graph_type.lower() == "line graph":
             self.ax.plot(
                 self.x_values,
                 self.y_values,
                 color=self.element_color,
-                # marker=".",
+                linewidth=4,
             )
 
         # Set ylimits
         if app_settings.ymode == "Select Limit":
             self.ax.set_ylim(*app_settings.ylim)
         elif app_settings.ymode == "Auto Limit":
-            # KORJAA!
-            # No need to draw the graphs yet. The graphs will be drawn with redraw_graphs().
-            #
-            # Cannot draw yet because need the ylims of all of the needed graphs otherwise
-            # graphs will be drawn twice.
-            return
+            # Force drawing graphs even if auto limit ymode is set
+            if force_draw:
+                self.canvas.draw()
+                self.is_drawn = True
+
+            # The Graphs need the ylims of other graphs before drawing,
+            # so the graphs will be drawn with redraw_graphs() later.
+            return  # Stop graphs from being drawn twice.
 
         # Draw graph on tkinter canvas
         self.canvas.draw()
@@ -563,14 +590,8 @@ class Graph(ctk.CTkFrame):
             if time_dif_td:
                 search_start_dt = search_end_dt + time_dif_td
                 search_start = utils.datetime_to_epoch(search_start_dt)
-
-                print(search_start_dt)
             else:
                 search_start = self._get_all_search_start()
-
-            print(search_end_dt)
-        else:
-            print("SHOULD NOT GET HERE!")
 
         print("Search start:", utils.get_formatted_finnish_time(search_start))
         print("Search end:  ", utils.get_formatted_finnish_time(search_end))
@@ -578,6 +599,11 @@ class Graph(ctk.CTkFrame):
         return search_start, search_end
 
     def get_first(self) -> datetime.datetime | None:
+        """Get first epoch of chosen location from the database.
+
+        :return: first epoch of chosen location as datetime Object
+        :rtype: datetime.datetime | None
+        """
         with database.SQLiteDBManager(app_settings.db_path) as db_handle:
             search_start = db_handle.get_first_time(
                 self.locations.get(self.location_name)
@@ -587,7 +613,7 @@ class Graph(ctk.CTkFrame):
             search_start = utils.get_localized_datetime(search_start)
 
         return search_start
-    
+
     def _get_all_search_start(self) -> int | None:
         search_start_dt = self.get_first()
 
@@ -598,8 +624,13 @@ class Graph(ctk.CTkFrame):
 
         return utils.datetime_to_epoch(search_start_dt)
 
-
     def _set_axes(self, graph_amount: int):
+        """Clears previous axis values and then sets all axis values to the new ones.
+
+        :param graph_amount: amount of graphs that will be drawn. Affects the
+            interval of data to reduce graph label overlap
+        :type graph_amount: int
+        """
         self.ax.clear()
         self.ax.set_facecolor(self.axis_colors)
         self.ax.set_title(self.title, color=self.axis_colors)
@@ -624,23 +655,8 @@ class Graph(ctk.CTkFrame):
                 locator, tz=constants.DEFAULT_TIMEZONE
             )
 
-            # alku_dt = datetime(2024, 3)
-            # for i in range(8):
-            #     jep = locator.get_locator(alku_dt, datetime(2024, 4+i))
-            #     print("locator:", jep)
-            #     print("\n")
-
-            # locator.intervald[DAILY] = [1,2,3,7, 14, 21, 30]
-            # # locator.intervald[MONTHLY] = [6]
-
             # '%#d' only works with windows. '%-d' on linux
             formatter.formats = [
-                # "(f_y) %y",  # ticks are mostly years
-                # "(f_m) %b",  # ticks are mostly months
-                # "(f_d) %a, %#d.",  # ticks are mostly days
-                # "(f_h) %H:%M",  # hrs
-                # "(f_m) %H:%M",  # min
-                # "(f_s) %S.%f",  # secs
                 "%y",  # ticks are mostly years
                 "%b",  # ticks are mostly months
                 "%a, %#d.",  # ticks are mostly days
@@ -650,12 +666,6 @@ class Graph(ctk.CTkFrame):
             ]
 
             formatter.zero_formats = [
-                # "(zf_y)",
-                # "(zf_m) %b %Y",
-                # "(zf_d) %b '%y",
-                # "(zf_h) %a, %#d.",  # '%#d' only works with windows. '%-d' on linux
-                # "(zf_m) %H:%M",
-                # "(zf_s) %H:%M",
                 "",
                 "%b %Y",
                 "%b '%y",
@@ -997,6 +1007,7 @@ class GraphTab:
         self.cal.highlight_dates()
 
     def update_loc(self, locations: dict[str, int], location_name: str):
+        """Update locations"""
         self.graph.locations = locations
         self.graph.location_name = location_name
         self.location_menu.set_menu_values(
@@ -1006,25 +1017,16 @@ class GraphTab:
     def plot_single_graph_event(self):
         self.graph_page.draw_single_graph(self.graph_num)
 
-        # if self.graph_page.graph_amount >= self.graph.graph_num:
-        #     if self.graph_page.fig is None:
-        #         self.graph_page.set_fig_and_ax()
-        #     self.graph.draw_graph()
-
     def open_calendar_event(self):
         self.cal.drop_down()
 
     def update_date(self, event):
         self.graph.graph_date = self.cal.get_date().strftime("%d-%m-%Y")
-        print("Selected Date: ", self.cal.get_date())
 
     def change_graph_type_event(self, value):
-        print("Set graph type to: ", value)
         self.graph.graph_type = value
 
     def change_graph_mode_event(self, value):
-        print("Set graph value to: ", value)
-        # oikea = GRAPH_MODES.get(value)
         self.graph.graph_mode = value
 
     def change_time_mode_event(self, value):
@@ -1317,13 +1319,6 @@ class DatabaseSidebar(ctk.CTkFrame):
                 + f" Database error:\n{err}\n\n"
             )
             self.stop_collecting_data()  # Toggle data collection button off
-            print("--------------------------------------\nerror\n")
-            print(err)
-            print("--------------------------------------\nstack\n")
-            traceback.print_stack()
-            print("--------------------------------------\nexc\n")
-            traceback.print_exc()
-            print("--------------------------------------")
 
     def _format_data(self, location_data: Location):
         formatted_str = f"""
@@ -1331,7 +1326,6 @@ class DatabaseSidebar(ctk.CTkFrame):
         \tTime: {utils.get_formatted_finnish_time(location_data.epoch_timestamp)}
         \tVisitor amount: {location_data.location_visitors}
         """
-
         return formatted_str
 
 
@@ -1360,9 +1354,6 @@ class MyMenuBar(CTkMenuBar):
         # file_dropdown.add_separator()
         # Change database button
         file_dropdown.add_option(option="Change Database", command=self.select_db)
-        # file_dropdown.add_option(
-        #     option="Use Default Database", command=self.use_default_db
-        # )
 
         # Buttons in View
         view_dropdown = CustomDropdownMenu(master=parent, widget=view_button)
@@ -1399,13 +1390,8 @@ class MyMenuBar(CTkMenuBar):
             else:
                 messagebox.showerror(
                     title="Error",
-                    message="Unable to replace the old database with the backup. "
-                    + "Choose a different name or a location for the backup.",
+                    message="Choose a different name or a location for the backup.",
                 )
-                # self.create_backup()
-
-    # def progress(self, status, remaining, total):
-    #     print(f"Copied {total-remaining} of {total} pages... status={status}")
 
     def import_data(self):
         import_path = filedialog.askopenfilename(
@@ -1491,9 +1477,7 @@ class MyMenuBar(CTkMenuBar):
             )
 
     def _new_fig_size(self, images: list[Image.Image]) -> tuple[int, int]:
-        """
-        Returns the size of the new image.
-
+        """Returns the size of the new image.
 
         If images has only 1 image the new image size is the size of the original image
 
@@ -1505,9 +1489,8 @@ class MyMenuBar(CTkMenuBar):
             the new width is max(image0, image2) + max(image1, image3) width
             the new height is max(image0, image1) + max(image2, image3) height
 
-        returns
-        ---
-        width, height
+        :return: size of the new image. (width, height)
+        :rtype: tuple[int, int]
         """
         width = 0
         height = 0
@@ -1789,12 +1772,8 @@ class SaveSinglePopup(MyPopup):
         )
 
     def _choose_graph_event(self, value):
-        print("Choose graph event:", value)
         self.chosen_graph = int(value) - 1
         self.ok_button.configure(state=ctk.NORMAL)
-
-    def _cancel_event(self):
-        self.destroy()
 
     def _ok_event(self):
         fig = self.parent.pages.get("graph").get_fig(self.chosen_graph)
@@ -1890,7 +1869,7 @@ class SettingsPopup(MyPopup):
             self.ylim = (self.ylim[0], None)
         elif value == "Select Limit":
             self.settings_dropdown.variable.set(self.get_ylim_text())
-            dialog = ctk.CTkInputDialog(text="Type in a number:", title="Test")
+            dialog = ctk.CTkInputDialog(text="Type in a number:", title="Choose upper limit")
             selected_value = dialog.get_input()
             self.grab_set()
             try:
@@ -1966,8 +1945,8 @@ class SettingsPopup(MyPopup):
         "Get text for button"
         if self.ymode == "Select Limit":
             return self.ylim[1]
-        else:
-            return self.ymode
+       
+        return self.ymode
 
 
 def main():
