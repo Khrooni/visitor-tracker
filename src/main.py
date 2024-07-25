@@ -593,7 +593,7 @@ class Graph(ctk.CTkFrame):
             else:
                 search_start = self._get_all_search_start()
 
-        print("Search start:", utils.get_formatted_finnish_time(search_start))
+        print("\nSearch start:", utils.get_formatted_finnish_time(search_start))
         print("Search end:  ", utils.get_formatted_finnish_time(search_end))
 
         return search_start, search_end
@@ -1313,10 +1313,16 @@ class DatabaseSidebar(ctk.CTkFrame):
                     func_time = time.perf_counter() - start_time
                     sleep_time = max(0, (interval - func_time))
                     time.sleep(sleep_time)  # Sleep for remaining time
-        except (requests.exceptions.ConnectionError, Exception) as err:
+        except requests.exceptions.ConnectionError as err:
             self.write_to_textbox(
-                "Data collection aborted. Restarting app might be necessary."
-                + f" Database error:\n{err}\n\n"
+                f"Data collection aborted. {type(err).__name__} occurred."
+                + "\nInternet connection might have been lost.\n\n"
+            )
+            self.stop_collecting_data()  # Toggle data collection button off
+        except Exception as err:
+            self.write_to_textbox(
+                f"Data collection aborted. {type(err).__name__} occurred.\nRestarting app might be necessary."
+                + f"\nError info:\n{err}\n\n"
             )
             self.stop_collecting_data()  # Toggle data collection button off
 
@@ -1369,7 +1375,7 @@ class MyMenuBar(CTkMenuBar):
         help_dropdown.add_option(
             option="How to use", command=lambda: print("How to use")
         )
-        help_dropdown.add_option(option="something", command=self._something_temp)
+        help_dropdown.add_option(option="something", command=lambda: print("something"))
 
     def open_settings(self):
         SettingsPopup(self.parent, "Settings")
@@ -1525,9 +1531,6 @@ class MyMenuBar(CTkMenuBar):
                 y_offset += im.size[1]
 
         return new_im
-
-    def _something_temp(self):
-        print("something")
 
 
 class SettingsFrame(ctk.CTkFrame):
@@ -1869,7 +1872,9 @@ class SettingsPopup(MyPopup):
             self.ylim = (self.ylim[0], None)
         elif value == "Select Limit":
             self.settings_dropdown.variable.set(self.get_ylim_text())
-            dialog = ctk.CTkInputDialog(text="Type in a number:", title="Choose upper limit")
+            dialog = ctk.CTkInputDialog(
+                text="Type in a number:", title="Choose upper limit"
+            )
             selected_value = dialog.get_input()
             self.grab_set()
             try:
@@ -1945,7 +1950,7 @@ class SettingsPopup(MyPopup):
         "Get text for button"
         if self.ymode == "Select Limit":
             return self.ylim[1]
-       
+
         return self.ymode
 
 
