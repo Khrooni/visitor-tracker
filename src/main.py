@@ -583,7 +583,7 @@ class Graph(ctk.CTkFrame):
             search_start = utils.formatted_date_to_epoch(f"{self.graph_date} 00:00:00")
             search_end = utils.next_time(search_start, days=1)  # +1 day
         elif self.time_mode == "Time Range":
-            search_end_dt = utils.top_of_the_hour(datetime.datetime.now())
+            search_end_dt = datetime.datetime.now()
             search_end = utils.datetime_to_epoch(search_end_dt)
 
             time_dif_td = utils.get_time_delta(self.time_range, "negative")
