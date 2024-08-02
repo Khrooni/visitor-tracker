@@ -8,7 +8,6 @@ import os
 from . import helpers
 
 
-# DB_NAME = "testMultiDB.db"
 DB_NAME = "visitorTrackingDB.db"
 DB_DIRECTORY = "src/database/"
 DB_FILE_PATH = DB_DIRECTORY + DB_NAME
@@ -27,7 +26,7 @@ class SQLiteDBManager:
         """
         use "with SQLiteDBManager() as db_handle:"
         """
-        
+
         self.dbpath = dbpath
         self.conn = sqlite3.connect(dbpath)
 
