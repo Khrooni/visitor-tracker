@@ -24,7 +24,7 @@ import database
 import database.helpers
 import retrieve_data
 from retrieve_data import Location
-from settings import Settings
+from settings.settings import Settings
 import utils
 from utils import DropdownAndLabel, InfoButton, MyPopup, CustomDateEntry
 
@@ -190,30 +190,30 @@ class GraphPage(ctk.CTkFrame):
     def _get_auto_ylim(self) -> tuple[float, float]:
         """Calculate auto ylim from all graphs on screen.
 
-        :return: (ylim_lower, ylim_upper)
+        :return: (lower_ylim, upper_ylim)
         :rtype: tuple[float, float]
         """
-        ylim_upper = None
+        upper_ylim = None
         margin = 0.05
 
         for graph_num in range(self.graph_amount):
             if self.all_graphs[graph_num].y_values:
                 temp_upper = max(self.all_graphs[graph_num].y_values)
 
-                if ylim_upper:
-                    if temp_upper and temp_upper > ylim_upper:
-                        ylim_upper = temp_upper
+                if upper_ylim:
+                    if temp_upper and temp_upper > upper_ylim:
+                        upper_ylim = temp_upper
                 else:
-                    ylim_upper = temp_upper
+                    upper_ylim = temp_upper
 
-        if ylim_upper:
-            ylim_upper = ylim_upper * (margin + 1)
+        if upper_ylim:
+            upper_ylim = upper_ylim * (margin + 1)
 
-        return (app_settings.ylim[0], ylim_upper)
+        return (app_settings.ylim[0], upper_ylim)
 
     def _get_ylim(self) -> tuple[float, float]:
         """
-        :return: ymode appropriate y-limit. (ylim_lower, ylim_upper)
+        :return: ymode appropriate y-limit. (lower_ylim, upper_ylim)
         :rtype: tuple[float, float]
         """
         if app_settings.ymode == "Auto Limit":
@@ -221,7 +221,7 @@ class GraphPage(ctk.CTkFrame):
         elif app_settings.ymode == "Select Limit":
             ylim = app_settings.ylim
         elif app_settings.ymode == "No Limit":
-            ylim = app_settings.default_ylim
+            ylim = app_settings.get_default_ylim()
 
         return ylim
 
@@ -1438,6 +1438,7 @@ class MyMenuBar(CTkMenuBar):
                 + f"selected database ({new_filepath})?",
             ):
                 app_settings.db_path = new_filepath
+                app_settings.update_all()
                 self.parent.pages.get("graph").sidebar.update_all()
 
     def save_single_graph(self):
@@ -1900,15 +1901,16 @@ class SettingsPopup(MyPopup):
             app_settings.ylim = self.ylim
             app_settings.ymode = self.ymode
 
+        app_settings.update_all()
         self.destroy()
 
     def _reset_event(self):
         if messagebox.askokcancel(
             "Reset settings?", "Do you really want to reset settings to default values?"
         ):
-            self.ylim = app_settings.default_ylim
-            self.ymode = app_settings.default_ymode
-            self.filepath = app_settings.default_db_path
+            self.ylim = app_settings.get_default_ylim()
+            self.ymode = app_settings.get_default_ymode()
+            self.filepath = app_settings.get_default_db_path()
 
             self.settings_dropdown.variable.set(self.get_ylim_text())
 
@@ -1932,7 +1934,7 @@ class SettingsPopup(MyPopup):
             self.db_path_frame.winfo_children()[1].configure(text=tail)
 
     def default_db(self):
-        default_filepath = os.path.relpath(app_settings.default_db_path)
+        default_filepath = os.path.relpath(app_settings.get_default_db_path())
 
         if self.filepath:
             rel_path = os.path.relpath(self.filepath)
