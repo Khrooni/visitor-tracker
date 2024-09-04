@@ -19,3 +19,7 @@ src/test_funcs.py
 src/test_nor.py
 test_o/
 .vscode/settings.json
+src/settings/config.ini
+src/temp_test.py
+tests/actual_possible_tests.py
+src/database/testMultiDB.db

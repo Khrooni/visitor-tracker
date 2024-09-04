@@ -20,8 +20,8 @@ MAX_GRAPH_AMOUNT = 4
 
 GRAPH_MODES = {
     "Visitors": "avg",
-    "Highest Visitors": "max",
-    "Lowest Visitors": "min",
+    "Most Visitors": "max",
+    "Least Visitors": "min",
 }
 WEEKDAY_TIME_RANGE_GRAPH_MODES = {"Visitors": "avg"}
 DEFAULT_GRAPH_MODE = "Visitors"

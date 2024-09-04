@@ -52,7 +52,7 @@ class Settings:
 
     def _set_ymode(self, ymode: str):
         self.config.set("main", "ymode", ymode)
-    
+
     def update_all(self):
         """Update config.ini to match set Settings class variables
         (db_path, ylim, ymode)"""

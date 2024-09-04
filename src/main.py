@@ -3,10 +3,10 @@ import ntpath
 import os
 import threading
 import time
+import webbrowser
 
 # import tkinter as tk
 from tkinter import filedialog, messagebox
-import traceback
 from typing import Any
 
 import customtkinter as ctk
@@ -516,6 +516,8 @@ class Graph(ctk.CTkFrame):
         # Set ylimits
         if app_settings.ymode == "Select Limit":
             self.ax.set_ylim(*app_settings.ylim)
+        elif app_settings.ymode == "No Limit":
+            self.ax.set_ylim(app_settings.ylim[0], None)
         elif app_settings.ymode == "Auto Limit":
             # Force drawing graphs even if auto limit ymode is set
             if force_draw:
@@ -925,7 +927,7 @@ class GraphTab:
         # Weekday dropdown menu and label
         self.weekday_menu = DropdownAndLabel(
             self.weekday_frame,
-            "Weekday",
+            "Day",
             list(constants.WEEKDAYS.keys()),
             self.change_weekday_event,
             constants.DEFAULT_WEEKDAY,
@@ -1346,7 +1348,7 @@ class MyMenuBar(CTkMenuBar):
         self.add_cascade(
             "Settings", self.open_settings, text_color="white", cursor="hand2"
         )
-        help_button = self.add_cascade("Help", text_color="white")
+        help_button = self.add_cascade("Help", postcommand=self.open_doc, text_color="white")
 
         # Buttons in File
         file_dropdown = CustomDropdownMenu(master=parent, widget=file_button)
@@ -1370,12 +1372,9 @@ class MyMenuBar(CTkMenuBar):
             option="Database", command=lambda: parent.lift_page("database")
         )
 
-        # Buttons in Help
-        help_dropdown = CustomDropdownMenu(master=parent, widget=help_button)
-        help_dropdown.add_option(
-            option="How to use", command=lambda: print("How to use")
-        )
-        help_dropdown.add_option(option="something", command=lambda: print("something"))
+    def open_doc(self, doc_url = "https://github.com/Khrooni/headcount-graph-project/tree/main"):
+        """Open documentation"""
+        webbrowser.open(doc_url, new=0, autoraise=True)
 
     def open_settings(self):
         SettingsPopup(self.parent, "Settings")
@@ -1853,7 +1852,7 @@ class SettingsPopup(MyPopup):
         )
         graph_frame.add_title("Graphs")
         self.settings_dropdown = graph_frame.add_settings_dropdown(
-            "y-axis upper bound:",
+            "Y-axis upper limit:",
             constants.YMODES,
             default_value=self.get_ylim_text(),
             command=self._select_ylim_event,
@@ -1957,7 +1956,7 @@ class SettingsPopup(MyPopup):
 
 
 def main():
-    App("VisitorFlowTracker")
+    App("VisitorTracker")
 
 
 if __name__ == "__main__":
