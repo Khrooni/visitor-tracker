@@ -1372,7 +1372,7 @@ class MyMenuBar(CTkMenuBar):
             option="Database", command=lambda: parent.lift_page("database")
         )
 
-    def open_doc(self, doc_url = "https://github.com/Khrooni/headcount-graph-project/tree/main"):
+    def open_doc(self, doc_url = "https://github.com/Khrooni/visitor-tracker?tab=readme-ov-file#how-to-use---demo"):
         """Open documentation"""
         webbrowser.open(doc_url, new=0, autoraise=True)
 
