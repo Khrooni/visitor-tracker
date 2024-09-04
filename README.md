@@ -1,8 +1,10 @@
+# VisitorTracker
+![alt text](img/p00-VisitorTracker.png)
+
 # About
+VisitorTracker is a Tkinter based GUI application that scrapes visitor data from a local gym's website, stores that data in a SQLite database, and draws different graphs from the collected data. This project was created as a hobby project to draw some interesting graphs and to gain some more coding experience.
 
-KORJAA!(name here) is a Tkinter based GUI application that scrapes visitor data from a local gym's website, stores that data in a SQLite database, and draws different graphs from the collected data. This project was created as a hobby project to draw some interesting graphs and to gain some more coding experience.
-
-KORJAA!-app was designed to be compatible with multiple sources of data. Adding more data collection locations should be quite simple, requiring only to implement data scraping from a new website and adding a new option to the GUI for selecting which location to collect the data from. (I might choose to add more locations in the future if I regain my interest in this project again.)
+VisitorTracker was designed to be compatible with multiple sources of data. Adding more data collection locations should be quite simple, requiring only to implement data scraping from a new website and adding a new option to the GUI for selecting which location to collect the data from. (I might choose to add more locations in the future if I regain my interest in this project again.)
 
 # How to use - Demo
 
@@ -77,7 +79,7 @@ There are three time modes: 'Calendar' allows selection of a specific date, 'Dai
 (The 'OK' button is hidden behind the graph number options in this picture)
 ![alt text](img/p20-save-single-graph.png)
 
-# Database View
+## Database View
 
 **Select 'Database' from the 'View' dropdown**\
 'Graphs' option and 'Database' option open their respective pages.
@@ -137,8 +139,3 @@ There are three 'Y-axis upper limit'-modes: 'Auto Limit' adjusts the upper limit
 
 **4 graphs Select Limit (100)**
 ![alt text](img/p37-4-graphs-100-limit.png)
-
-
-# features
-
-- timezones taken into account
