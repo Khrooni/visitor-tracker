@@ -9,7 +9,7 @@ KORJAA!-app was designed to be compatible with multiple sources of data. Adding 
 Example usage of the application.
 
 **Opening screen**
-![alt text](img\p01-main-menu.png)
+![alt text](img/p01-main-menu.png)
 
 **Use the 'Open Calendar' button to access the calendar**\
 Dates with a green background indicate collected data, while non-highlighted dates have no data.
