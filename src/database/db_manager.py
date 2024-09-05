@@ -1,15 +1,15 @@
-import sqlite3
 import contextlib
-from typing import List, Callable
-import re
 import math
 import os
+import re
+import sqlite3
+from typing import List, Callable
 
 from . import helpers
 
 
-DB_NAME = "visitorTrackingDB.db"
 DB_DIRECTORY = "src/database/"
+DB_NAME = "visitorTrackingDB.db"
 DB_FILE_PATH = DB_DIRECTORY + DB_NAME
 
 MODES = {
@@ -45,7 +45,7 @@ class SQLiteDBManager:
             cursor.execute(sql_create_locations_table)
             cursor.execute(sql_create_visitor_activity_table)
             self.conn.commit()
-        
+
         self._close()
 
     def __enter__(self):
@@ -103,20 +103,23 @@ class SQLiteDBManager:
 
         This method assumes that the current instance is connected to the source (old) database.
         It will create two tables (`locations` and `visitor_activity`) in the destination database
-        if they do not already exist, and then copy the data from the source database to these tables.
+        if they do not already exist, and then copy the data from the source database
+        to these tables.
 
         Parameters:
         ---
         dest_db_path (str): The file path to the destination database.
-        replace (bool): If True, existing records in the destination database will be replaced with
-            records from the source database (INSERT OR REPLACE). If False, existing records will be retained
-            and only new records will be added (INSERT OR IGNORE).
+        replace (bool): If True, existing records in the destination database will be replaced
+            with records from the source database (INSERT OR REPLACE). If False, existing
+            records will be retained and only new records will be added (INSERT OR IGNORE).
 
         Raises:
         ---
-        - `ValueError`: If given dest_db_path is the path to dbpath of the SQLiteDBManager instance.
-        - `sqlite3.OperationalError`: If destination database already had `locations`/`visitor_activity` tables, and
-            those tables have an incorrect schema.
+        - `ValueError`: If given dest_db_path is the path to dbpath of the
+            SQLiteDBManager instance.
+        - `sqlite3.OperationalError`: If destination database already had
+            `locations`/`visitor_activity` tables, and those tables have
+            an incorrect schema.
         """
         if os.path.realpath(self.dbpath) == os.path.realpath(dest_db_path):
             # Korjaa! Parempi teksti.
@@ -142,19 +145,19 @@ class SQLiteDBManager:
         stmt_add_vis_act = f"INSERT OR {conflict_clause} INTO dest_db.visitor_activity SELECT * FROM main.visitor_activity"
 
         with contextlib.closing(self.conn.cursor()) as cursor:
-            print("Attach...", dest_db_path)
+            # print("Attach...", dest_db_path)
             cursor.execute(pstmt_attach_db, (dest_db_path,))
-            print("Create locations...")
+            # print("Create locations...")
             cursor.execute(stmt_create_locs)
-            print("Create visitor activity...")
+            # print("Create visitor activity...")
             cursor.execute(stmt_create_vis_act)
-            print("Add locations...")
+            # print("Add locations...")
             cursor.execute(stmt_add_locs)
-            print("Add visitor activity...")
+            # print("Add visitor activity...")
             cursor.execute(stmt_add_vis_act)
-            print("Commit...")
+            # print("Commit...")
             self.conn.commit()
-            print("Committed")
+            # print("Committed")
 
     def add_data(
         self,
@@ -228,7 +231,8 @@ class SQLiteDBManager:
         self, location_id: int, start: int, end: int
     ) -> List[tuple]:
         """
-        Retrieve activity records from the 'visitor_activity' table within a specified time range for a given location.
+        Retrieve activity records from the 'visitor_activity' table within a
+        specified time range for a given location.
 
         Parameters:
             location_id (int): The ID of the location..
@@ -237,7 +241,8 @@ class SQLiteDBManager:
 
         Returns:
             List[Tuple]: A list of tuples representing the retrieved activity records.
-                        Each tuple contains two elements: epoch timestamp and number of location visitors.
+                        Each tuple contains two elements: epoch timestamp and number
+                        of location visitors.
 
         If either the 'start' or 'end' parameters are negative or if any of the parameters are not of type 'int',
         an empty list is returned.
@@ -261,7 +266,8 @@ class SQLiteDBManager:
 
     def get_average_visitors(self, location_id: int, weekday: str) -> list[int]:
         """
-        Calculates the average number of visitors and corresponding timestamps for a given location and weekday.
+        Calculates the average number of visitors and corresponding timestamps
+            for a given location and weekday.
         Averages are calculated for every hour of the day (00, 01, ..., 23)
 
         Parameters:
@@ -297,7 +303,7 @@ class SQLiteDBManager:
             )
 
             missing_hour = None
-            
+
             if len(new_sums) != 24:
                 missing_hour = helpers.calculate_missing_or_extra_hour(
                     start, end, interval
@@ -305,7 +311,7 @@ class SQLiteDBManager:
                 new_sums = helpers.add_or_remove_extra_values(
                     new_sums, missing_hour, 0, 24
                 )
-            
+
             if len(new_counts) != 24:
                 if not missing_hour:
                     missing_hour = helpers.calculate_missing_or_extra_hour(
@@ -570,8 +576,8 @@ class SQLiteDBManager:
 
     def _table_exists(self, table_name: str) -> bool:
         """
-        True if table exists. False if table doesn't exist or given table name didn't pass SQL Injection check.
-        (Doesn't follow regex '^[A-Za-z0-9_äÄöÖåÅ]+$')
+        True if table exists. False if table doesn't exist or given table name
+        didn't pass SQL Injection check. (Doesn't follow regex '^[A-Za-z0-9_äÄöÖåÅ]+$')
         """
 
         if not self._valid_table_name(table_name):
