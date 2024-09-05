@@ -1,11 +1,11 @@
-import requests
-import json
-
 from dataclasses import dataclass
-from typing import List
+import json
 import time
-import utils
+from typing import List
 
+import requests
+
+import utils
 
 @dataclass
 class Location:
@@ -25,7 +25,7 @@ def _get_html() -> requests.models.Response:
     """
     url = "https://funouluritaharju.fi/?controller=ajax&getentriescount=1&locationId=1"
 
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
 
     return response
 
@@ -38,15 +38,16 @@ def _parse_locations_data(response: requests.models.Response) -> List[Location]:
         response (requests.models.Response): The response object containing location data.
 
     Returns:
-        List[Location]: A list of Location objects, each representing a location entry with parsed data.
+        List[Location]: A list of Location objects, each representing a location entry
+            with parsed data.
     """
     locations = []
 
     date = response.headers.get("date")
-    print(date)  # Korjaa
+    # print(date)
 
     epoch = utils.gmt_to_epoch(date)
-    print(epoch)
+    # print(epoch)
     parsed_data = json.loads(response.text)
     entries_by_location = parsed_data["entriesByLocation"]
 

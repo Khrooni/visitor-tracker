@@ -143,8 +143,8 @@ def get_finnish_date(epoch_timestamp) -> str | None:
 
 def get_formatted_finnish_time(epoch_timestamp) -> str | None:
     """
-    Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns it in a formatted string.
-    Format: 'DD-MM-YYYY HH:MM:SS EET'
+    Converts the epoch timestamp to Finnish time zone (EET: UTC+2) and returns
+    it in a formatted string. Format: 'DD-MM-YYYY HH:MM:SS EET'
 
     Returns None if epoch timestamp was a value that couldn't be converted.
     """
@@ -265,38 +265,3 @@ def reset_dt_timezone(
 
 def datetime_to_epoch(datetime_to: datetime) -> int:
     return int(datetime_to.timestamp())
-
-
-def main():
-    date = "Mon, 15 Apr 2024 18:04:29 GMT"
-
-    time_object2 = time.strptime(date, "%a, %d %b %Y %H:%M:%S %Z")
-
-    epoch2 = calendar.timegm(time_object2)
-    epoch3 = gmt_to_epoch(date)
-
-    print("My calculated epoch style 2: ", epoch2)
-    print("My calculated epoch func   : ", epoch3)
-    print("Right epoch:                 ", 1713204269)
-
-    fin_date = "15-4-2024 21:04:29"
-    fin_epoch = formatted_date_to_epoch(fin_date)
-    my_fin_date = get_finnish_date(fin_epoch)
-    my_fin_day = get_finnish_day(fin_epoch)
-    my_fin_hour = get_finnish_hour(fin_epoch)
-    my_fin_time = get_finnish_time(fin_epoch)
-
-    print("Date:          ", fin_date)
-    print("Fin epoch:     ", fin_epoch)
-    print("Actual epoch:  ", 1713204269)
-    print("Fin date:      ", my_fin_date)
-    print("Fin day:       ", my_fin_day)
-    print("Fin hour:      ", my_fin_hour)
-    print("Fin time:      ", my_fin_time)
-
-    test = get_localized_datetime(fin_epoch)
-    print(test)
-
-
-if __name__ == "__main__":
-    main()

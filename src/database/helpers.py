@@ -1,11 +1,10 @@
-import re
-import string
+from datetime import timedelta
+import math
 from typing import List, Any
-from datetime import datetime, timedelta
-import utils
 
 import pytz
-import math
+
+import utils
 
 
 def calculate_days(
@@ -78,7 +77,8 @@ def _lower_limit(start: int, weekday: str) -> int:
     - weekday (str): Target weekday abbreviation ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
 
     Returns:
-    - int: Closest target weekday as epoch timestamp in seconds. Time of the day will always be set to 00:00:00.
+    - int: Closest target weekday as epoch timestamp in seconds. Time of the day will always
+        be set to 00:00:00.
 
     """
     weekdays = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
@@ -111,8 +111,10 @@ def _upper_limit(end: int, weekday: str) -> int:
     - weekday (str): Target weekday abbreviation ("mon", "tue", "wed", "thu", "fri", "sat", "sun").
 
     Returns:
-    - int: Closest target weekday(+1 day) as epoch timestamp in seconds. Time of the day will always be set to 00:00:00.
-        Example: If target weekday is Tuesday returns previous Wednesday at 00:00:00. (mon -> tue, tue -> wed, ...)
+    - int: Closest target weekday(+1 day) as epoch timestamp in seconds.
+        Time of the daywill always be set to 00:00:00.
+        Example: If target weekday is Tuesday returns previous Wednesday at 00:00:00.
+        (mon -> tue, tue -> wed, ...)
     """
 
     weekdays = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
@@ -150,7 +152,10 @@ def _upper_limit(end: int, weekday: str) -> int:
 
 
 def add_or_remove_extra_values(
-    value_list: list, value_index: int, added_value: Any | list = 0, expected_list_size = 24
+    value_list: list,
+    value_index: int,
+    added_value: Any | list = 0,
+    expected_list_size=24,
 ) -> list:
     """
     Add/remove values to/from specific index(es) in a given list. Values are added/removed
@@ -162,19 +167,21 @@ def add_or_remove_extra_values(
     - value_index (int): The specific index where adding/removing the value(s) should start from.
     - expected_list_size (int): Expected size of the returned list.
     - added_value (Any | list):
-        - If 'added_value' is not a list, the value will be added/removed to/from the chosen index(es).
-        - If 'added_value' is a list, its element(s) will be added/removed sequentially to/from the chosen index(es),
-            repeating as needed to fill/reduce the size gap.
+        - If 'added_value' is not a list, the value will be added/removed to/from the
+            chosen index(es).
+        - If 'added_value' is a list, its element(s) will be added/removed sequentially
+            to/from the chosen index(es), repeating as needed to fill/reduce the size gap.
 
     Raises:
-    - IndexError: If added_value is a list that didn't have enough elements to add. (added_value list
-        should have as many elements as there are values to be added to the new list)
+    - IndexError: If added_value is a list that didn't have enough elements to add.
+        (added_value list should have as many elements as there are values to be
+        added to the new list)
     """
     new_list = value_list
 
-    if value_list.__len__() < expected_list_size:
+    if len(value_list) < expected_list_size:
         new_list = _add_values(value_list, value_index, expected_list_size, added_value)
-    elif value_list.__len__() > 24:
+    elif len(value_list) > 24:
         new_list = _remove_values(value_list, value_index, expected_list_size)
 
     return new_list
@@ -194,15 +201,16 @@ def _add_values(
     - expected_list_size (int): Expected size of the returned list.
     - added_value (Any | list):
         - If 'added_value' is not a list, the value will be added to the chosen index(es).
-        - If 'added_value' is a list, its element(s) will be added sequentially to the chosen index(es),
-            repeating as needed to fill the size gap.
+        - If 'added_value' is a list, its element(s) will be added sequentially to the
+            chosen index(es), repeating as needed to fill the size gap.
 
     Raises:
     - ValueError: If the size of 'value_list' is greater than 'expected_list_size'.
-    - IndexError: If added_value is a list that didn't have enough elements to add. (added_value list
-        should have as many elements as there are values to be added to the new list)
+    - IndexError: If added_value is a list that didn't have enough elements to add.
+        (added_value list should have as many elements as there are values to be
+        added to the new list)
     """
-    value_list_size = value_list.__len__()
+    value_list_size = len(value_list)
 
     if value_list_size > expected_list_size:
         raise ValueError(
@@ -227,10 +235,12 @@ def _add_values(
 
 def _remove_values(value_list: list, value_index: int, expected_list_size: int) -> list:
 
-    value_list_size = value_list.__len__()
+    value_list_size = len(value_list)
 
     if value_list_size < expected_list_size:
-        raise ValueError("Expected_list_size should be less than the size of value_list.")
+        raise ValueError(
+            "Expected_list_size should be less than the size of value_list."
+        )
 
     new_list = []
 
@@ -269,7 +279,7 @@ def calculate_missing_or_extra_hour(
             break
 
         hour_counter += 1
-        
+
     return hour_counter
 
 

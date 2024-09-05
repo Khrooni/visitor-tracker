@@ -5,7 +5,6 @@ import threading
 import time
 import webbrowser
 
-# import tkinter as tk
 from tkinter import filedialog, messagebox
 from typing import Any
 
@@ -595,8 +594,8 @@ class Graph(ctk.CTkFrame):
             else:
                 search_start = self._get_all_search_start()
 
-        print("\nSearch start:", utils.get_formatted_finnish_time(search_start))
-        print("Search end:  ", utils.get_formatted_finnish_time(search_end))
+        # print("\nSearch start:", utils.get_formatted_finnish_time(search_start))
+        # print("Search end:  ", utils.get_formatted_finnish_time(search_end))
 
         return search_start, search_end
 
@@ -1323,7 +1322,8 @@ class DatabaseSidebar(ctk.CTkFrame):
             self.stop_collecting_data()  # Toggle data collection button off
         except Exception as err:
             self.write_to_textbox(
-                f"Data collection aborted. {type(err).__name__} occurred.\nRestarting app might be necessary."
+                f"Data collection aborted. {type(err).__name__} occurred."
+                + "\nRestarting app might be necessary."
                 + f"\nError info:\n{err}\n\n"
             )
             self.stop_collecting_data()  # Toggle data collection button off
@@ -1348,7 +1348,9 @@ class MyMenuBar(CTkMenuBar):
         self.add_cascade(
             "Settings", self.open_settings, text_color="white", cursor="hand2"
         )
-        help_button = self.add_cascade("Help", postcommand=self.open_doc, text_color="white")
+        help_button = self.add_cascade(
+            "Help", postcommand=self.open_doc, text_color="white"
+        )
 
         # Buttons in File
         file_dropdown = CustomDropdownMenu(master=parent, widget=file_button)
@@ -1372,7 +1374,10 @@ class MyMenuBar(CTkMenuBar):
             option="Database", command=lambda: parent.lift_page("database")
         )
 
-    def open_doc(self, doc_url = "https://github.com/Khrooni/visitor-tracker?tab=readme-ov-file#how-to-use---demo"):
+    def open_doc(
+        self,
+        doc_url="https://github.com/Khrooni/visitor-tracker?tab=readme-ov-file#how-to-use---demo",
+    ):
         """Open documentation"""
         webbrowser.open(doc_url, new=0, autoraise=True)
 
@@ -1730,7 +1735,7 @@ class SaveSinglePopup(MyPopup):
         self.chosen_graph = None
 
         # Open square image
-        img_square = Image.open("src\\images\\square1234.png")
+        img_square = Image.open("src/images/square1234.png")
         img_square_ctk = ctk.CTkImage(
             light_image=img_square, dark_image=img_square, size=(150, 150)
         )

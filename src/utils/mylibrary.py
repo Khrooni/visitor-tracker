@@ -2,12 +2,12 @@ import datetime
 from tkinter import messagebox
 from typing import Callable, Any
 
-
 import customtkinter as ctk
 from PIL import Image
 from tkcalendar import DateEntry
 
 import utils
+
 
 class CustomDateEntry(DateEntry):
     """Custom DateEntry widget
@@ -21,7 +21,7 @@ class CustomDateEntry(DateEntry):
 
     - Note: showothermonthdays=False on default to avoid bug caused by highlighting
     dates outside current selected month.
-    
+
     Bug origin:
     Creating a calevent for a date in the calendar changes the 'style' of date from
     ('normal'/'normal_om' or 'we'/'we_om') to 'tag_%s' (tag_name).
@@ -47,7 +47,11 @@ class CustomDateEntry(DateEntry):
     """
 
     def __init__(
-        self, master=None, dates: list[str] | None = None, showothermonthdays=False, **kw
+        self,
+        master=None,
+        dates: list[str] | None = None,
+        showothermonthdays=False,
+        **kw,
     ):
 
         if dates is None:
@@ -129,8 +133,9 @@ class CustomDateEntry(DateEntry):
 
 class MyPopup(ctk.CTkToplevel):
     """
-    Popup base class with functionality to add bottom frame with 
+    Popup base class with functionality to add bottom frame with
     """
+
     def __init__(
         self,
         parent,
@@ -229,6 +234,7 @@ class MyPopup(ctk.CTkToplevel):
 
         return self.bottom_frame
 
+
 class DropdownAndLabel(ctk.CTkFrame):
     def __init__(
         self,
@@ -261,6 +267,7 @@ class DropdownAndLabel(ctk.CTkFrame):
             values=values, variable=ctk.StringVar(value=default_value)
         )
 
+
 class InfoButton(ctk.CTkButton):
     def __init__(
         self,
@@ -281,7 +288,7 @@ class InfoButton(ctk.CTkButton):
             command = self.info_popup
 
         # Info image
-        info_img = Image.open("src\\images\\information-button.png")
+        info_img = Image.open("src/images/information-button.png")
         info_img_ctk = ctk.CTkImage(
             light_image=info_img, dark_image=info_img, size=(15, 15)
         )
