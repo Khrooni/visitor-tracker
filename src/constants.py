@@ -91,7 +91,7 @@ YMODES = ["Auto Limit", "No Limit", "Select Limit"]
 
 DB_FILETYPES = [("SQLite Database (*.db)", "*.db")]
 DB_DEFAULTEXTENSION = DB_FILETYPES[0][1]
-DB_INITIALDIR= "src\\database"
+DB_INITIALDIR= "src/database"
 
 IMG_FILETYPES = [("PNG (*.png)", "*.png"), ("JPEG (*.jpg)", "*.jpg")]
 IMG_DEFAULTEXTENSION = IMG_FILETYPES[0][1]
