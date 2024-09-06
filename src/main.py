@@ -20,9 +20,7 @@ import matplotlib.dates as mdates
 
 import constants
 import database
-import database.helpers
-import retrieve_data
-from retrieve_data import Location
+import retrieve_data.retrieve_data as rd
 from settings.settings import Settings
 import utils
 from utils import DropdownAndLabel, InfoButton, MyPopup, CustomDateEntry
@@ -1291,8 +1289,8 @@ class DatabaseSidebar(ctk.CTkFrame):
                 while thread_id == self.thread_id:
                     start_time = time.perf_counter()
 
-                    data = retrieve_data.get_data()
-                    location: Location
+                    data = rd.get_data()
+                    location: rd.Location
                     for location in data:
                         added = db_handle.add_data(
                             location.location_id,
@@ -1328,7 +1326,7 @@ class DatabaseSidebar(ctk.CTkFrame):
             )
             self.stop_collecting_data()  # Toggle data collection button off
 
-    def _format_data(self, location_data: Location):
+    def _format_data(self, location_data: rd.Location):
         formatted_str = f"""
         \tLocation name: {location_data.location_name}
         \tTime: {utils.get_formatted_finnish_time(location_data.epoch_timestamp)}
