@@ -1,5 +1,4 @@
-# __all__ = ["database"]
+__all__ = ["db_manager", "helpers"]
 
 from .db_manager import SQLiteDBManager, DB_NAME, DB_DIRECTORY, DB_FILE_PATH
-# from .old_db_manager import initialize_database, add_data, add_location, add_visitor_activity, get_activity_between, get_all
-
+from .helpers import *
