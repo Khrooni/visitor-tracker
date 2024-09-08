@@ -36,7 +36,7 @@ There are three graph modes: 'Visitors' calculates the average number of visitor
 ![alt text](img/p07-plotted-4-graphs.png)
 
 The graph numbers in the tabs correspond to this diagram:\
-![alt text](src/images/square1234.png)
+![alt text](img/square1234.png)
 
 **2 plotted graphs**
 ![alt text](img/p08-plotted-2-graphs.png)

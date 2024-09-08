@@ -1,9 +1,9 @@
-retrive_data/tempCodeRunnerFile.py
-database/tempCodeRunnerFile.py
 __pycache__/
-tempCodeRunnerFile
+.vscode/
 tempCodeRunnerFile.py
-.vscode/launch.json
-.vscode/settings.json
 tests/
-src/settings/config.ini
+main.exe
+_internal/
+src/VisitorTracker/settings/config.ini
+visitor-tracker-venv/
+visitor-tracker-installer/
