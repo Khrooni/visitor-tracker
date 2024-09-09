@@ -25,7 +25,7 @@ class SQLiteDBManager:
         use "with SQLiteDBManager() as db_handle:"
         """
         self.dbpath = Path(__file__).parent / dbpath
-        self.conn = sqlite3.connect(dbpath)
+        self.conn = sqlite3.connect(self.dbpath)
 
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
             location_id INTEGER PRIMARY KEY NOT NULL,
