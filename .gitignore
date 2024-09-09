@@ -1,9 +1,8 @@
 __pycache__/
 .vscode/
 tempCodeRunnerFile.py
-tests/
-main.exe
-_internal/
+old_tests/
 src/VisitorTracker/settings/config.ini
 visitor-tracker-venv/
-visitor-tracker-installer/
+build/
+dist/
