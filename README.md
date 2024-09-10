@@ -2,7 +2,7 @@
 ![alt text](img/p00-VisitorTracker.png)
 
 # About
-VisitorTracker is a Tkinter based GUI application that scrapes visitor data from a local gym's website, stores that data in a SQLite database, and draws different graphs from the collected data. This project was created as a hobby project to draw some interesting graphs and to gain some more coding experience.
+VisitorTracker is a Tkinter based GUI application that scrapes visitor data from a local gym's website, stores that data in a SQLite database, and draws different graphs from the collected data. This project was created (2024) as a hobby project to draw some interesting graphs and to gain some more coding experience.
 
 VisitorTracker was designed to be compatible with multiple sources of data. Adding more data collection locations should be quite simple, requiring only to implement data scraping from a new website and adding a new option to the GUI for selecting which location to collect the data from. (I might choose to add more locations in the future if I regain my interest in this project again.)
 
@@ -19,7 +19,6 @@ When prompted with a security warning, **click on "More info".**
 
 **Note:** The application is safe to install and use. This warning appears because Windows does not recognize me as a known publisher / doesn't recognize my app, as I have not acquired a code signing certificate, which I do not plan to obtain due to the headache caused by trying to obtain one.\
 ![alt text](img/user-install/iu03-more-info.png)
-
 
 **Choose** the option to **"Run anyway".**\
 ![alt text](img/user-install/iu04-run-anyway.png)
@@ -38,6 +37,20 @@ When prompted with a security warning, **click on "More info".**
 
 ## Developer installation guide
 
+Dependencies can be installed with requirements.txt
+```
+pip install -r requirements.txt
+```
+
+
+`VisitorTracker.spec` file can be used with `PyInstaller` to create new standalone application that can be run without having Python installed. (Some modifications to `VisitorTracker.spec` may be necessary if the src code is changed)
+```
+# install PyInstaller
+
+# navigate to src/VisitorTracker in your terminal and run the following command
+
+pyinstaller VisitorTracker.spec
+```
 
 # How to use - Demo
 
