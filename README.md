@@ -6,6 +6,40 @@ VisitorTracker is a Tkinter based GUI application that scrapes visitor data from
 
 VisitorTracker was designed to be compatible with multiple sources of data. Adding more data collection locations should be quite simple, requiring only to implement data scraping from a new website and adding a new option to the GUI for selecting which location to collect the data from. (I might choose to add more locations in the future if I regain my interest in this project again.)
 
+# How to install - Guide
+
+## User installation guide
+
+**Locate `VisitorTracker-1.0-Windows-Setup.exe`** file within the repository or use this link [`VisitorTracker-1.0-Windows-Setup.exe`](https://github.com/Khrooni/visitor-tracker/blob/main/VisitorTracker-1.0-Windows-Setup.exe)
+
+To **download the installer**, click on the 3 dots and select "Download."
+
+![alt text](img/user-install/iu02-download.png)
+
+When prompted with a security warning, **click on "More info".**
+
+**Note:** The application is safe to install and use. This warning appears because Windows does not recognize me as a known publisher / doesn't recognize my app, as I have not acquired a code signing certificate, which I do not plan to obtain due to the headache caused by trying to obtain one.
+![alt text](img/user-install/iu03-more-info.png)
+
+
+**Choose** the option to **"Run anyway".**
+![alt text](img/user-install/iu04-run-anyway.png)
+
+**Review and accept the license agreement**, then proceed by clicking **"Next"** through each step until the installation is complete.
+![alt text](img/user-install/iu05-accept-license.png)
+
+**Create a desktop shortcut**.
+![alt text](img/user-install/iu07-desktop-shortcut.png)
+
+**Begin the installation** and wait for it to complete.
+![alt text](img/user-install/iu08-install.png)
+
+**Installation is now complete.** Open the application using the desktop shortcut you created and begin using it. For instructions on how to use the app, refer to this [How to use - Demo](#how-to-use---demo)
+![alt text](img/user-install/iu10-finish.png)
+
+## Developer installation guide
+
+
 # How to use - Demo
 
 Example usage of the application.
