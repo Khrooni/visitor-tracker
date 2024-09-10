@@ -20,11 +20,19 @@ MODES = {
 
 
 class SQLiteDBManager:
-    def __init__(self, dbpath=DB_REL_PATH):
+    def __init__(self, dbpath):
         """
-        use "with SQLiteDBManager() as db_handle:"
+        use "with SQLiteDBManager(dbpath) as db_handle:"
         """
-        self.dbpath = Path(__file__).parent / dbpath
+        default_path = (Path(__file__).parent / Path(DB_REL_PATH)).resolve()
+
+        if dbpath == DB_REL_PATH or Path(dbpath).resolve() == default_path:
+            # dbpath was path to default database file
+            self.dbpath = default_path
+        else:
+            # dbpath was path to some other database file
+            self.dbpath = dbpath
+
         self.conn = sqlite3.connect(self.dbpath)
 
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
