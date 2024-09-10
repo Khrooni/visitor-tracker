@@ -12,7 +12,7 @@ VisitorTracker was designed to be compatible with multiple sources of data. Addi
 
 **Locate `VisitorTracker-1.0-Windows-Setup.exe`** file within the repository or use this link [`VisitorTracker-1.0-Windows-Setup.exe`](https://github.com/Khrooni/visitor-tracker/blob/main/VisitorTracker-1.0-Windows-Setup.exe)
 
-To **download the installer**, click on the 3 dots and select "Download."
+To **download the installer**, click on the 3 dots and select "Download." Once the download is complete, open the setup file to begin installation. 
 
 ![alt text](img/user-install/iu02-download.png)
 
