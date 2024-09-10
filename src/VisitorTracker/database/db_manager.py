@@ -24,15 +24,7 @@ class SQLiteDBManager:
         """
         use "with SQLiteDBManager(dbpath) as db_handle:"
         """
-        default_path = (Path(__file__).parent / Path(DB_REL_PATH)).resolve()
-
-        if dbpath == DB_REL_PATH or Path(dbpath).resolve() == default_path:
-            # dbpath was path to default database file
-            self.dbpath = default_path
-        else:
-            # dbpath was path to some other database file
-            self.dbpath = dbpath
-
+        self.dbpath = self._resolve_path(dbpath)
         self.conn = sqlite3.connect(self.dbpath)
 
         sql_create_locations_table = """CREATE TABLE IF NOT EXISTS locations(
@@ -68,6 +60,16 @@ class SQLiteDBManager:
     def __del__(self):
         """Closes db connection"""
         self._close()
+
+    def _resolve_path(self, filepath):
+        default_path = (Path(__file__).parent / Path(DB_REL_PATH)).resolve()
+
+        if filepath == DB_REL_PATH or Path(filepath).resolve() == default_path:
+            # dbpath was path to default database file
+            return default_path
+
+        # dbpath was path to some other database file
+        return filepath
 
     def create_backup(
         self,
@@ -125,6 +127,8 @@ class SQLiteDBManager:
             `locations`/`visitor_activity` tables, and those tables have
             an incorrect schema.
         """
+        dest_db_path = str(self._resolve_path(dest_db_path))
+        
         if os.path.realpath(self.dbpath) == os.path.realpath(dest_db_path):
             raise ValueError(
                 "Given dest_db_path must be different from dbpath of the SQLiteDBManager instance."
