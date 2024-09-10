@@ -3,7 +3,8 @@
 added_files = [
     ('database/visitorTrackingDB.db', 'database'),
     ('settings/config.ini', 'settings'),
-    ('images', 'images')
+    ('images', 'images'),
+    ('utils/mylib_img', 'utils/mylib_img')
 ]
 
 a = Analysis(
